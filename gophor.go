@@ -14,9 +14,9 @@ import (
 const (
     ShowHidden = false
 
-    SocketReadBufSize = 1024
-    FileReadBufSize = 1024
-    MaxSocketReadChunks = 4
+    SocketReadBufSize = 512
+    FileReadBufSize = 512
+    MaxSocketReadChunks = 8
 )
 
 type Command int

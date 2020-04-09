@@ -20,16 +20,16 @@ type ItemType byte
  */
 const (
     /* RFC 1436 Standard */
-    TypeFile          = ItemType(0)   /* Regular file */
-    TypeDirectory     = ItemType(1)   /* Directory */
-    TypePhonebook     = ItemType(2)   /* CSO phone-book server */
-    TypeError         = ItemType(3)   /* Error */
-    TypeMacBinHex     = ItemType(4)   /* Binhexed macintosh file */
-    TypeDosBinArchive = ItemType(5)   /* DOS bin archive, CLIENT MUST READ UNTIL TCP CLOSE */
-    TypeUnixFile      = ItemType(6)   /* Unix uuencoded file */
-    TypeIndexSearch   = ItemType(7)   /* Index-search server */
-    TypeTelnet        = ItemType(8)   /* Text-based telnet session */
-    TypeBin           = ItemType(9)   /* Binary file, CLIENT MUST READ UNTIL TCP CLOSE */
+    TypeFile          = ItemType('0') /* Regular file */
+    TypeDirectory     = ItemType('1') /* Directory */
+    TypePhonebook     = ItemType('2') /* CSO phone-book server */
+    TypeError         = ItemType('3') /* Error */
+    TypeMacBinHex     = ItemType('4') /* Binhexed macintosh file */
+    TypeDosBinArchive = ItemType('5') /* DOS bin archive, CLIENT MUST READ UNTIL TCP CLOSE */
+    TypeUnixFile      = ItemType('6') /* Unix uuencoded file */
+    TypeIndexSearch   = ItemType('7') /* Index-search server */
+    TypeTelnet        = ItemType('8') /* Text-based telnet session */
+    TypeBin           = ItemType('9') /* Binary file, CLIENT MUST READ UNTIL TCP CLOSE */
     TypeTn3270        = ItemType('T') /* Text-based tn3270 session */
     TypeGif           = ItemType('g') /* Gif format graphics file */
     TypeImage         = ItemType('I') /* Some kind of image file (client decides how to display) */
@@ -117,7 +117,7 @@ func newDirEntity(t ItemType, name, selector, host string, port int) *DirEntity 
 }
 
 func (entity *DirEntity) Bytes() []byte {
-    b := make([]byte, 0)
+    b := []byte{}
     b = append(b, byte(entity.Type))
     b = append(b, []byte(entity.UserName)...)
     b = append(b, Tab)

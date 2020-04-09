@@ -3,9 +3,11 @@ package main
 import (
     "fmt"
     "os"
+    "io"
     "net"
     "bufio"
     "path"
+    "strings"
 )
 
 const (
@@ -34,21 +36,28 @@ func (client *Client) Start() {
         var err error
 
         /* Read buffer + final result */
-        b := make([]byte, SocketReadBufSize)
-        result := make([]byte, 0)
+        buf := make([]byte, SocketReadBufSize)
+        received := make([]byte, 0)
 
         /* Buffered read from listener */
         iter := 0
         for {
-            count, err = client.Socket.Read(b)
+            count, err = client.Socket.Read(buf)
             if err != nil {
                 fmt.Fprintf(os.Stderr, "Error reading from socket %s: %v\n", client.Socket, err)
                 return
             }
 
-            result = append(result, b...)
-            if count != SocketReadBufSize {
-                /* Reached end of read */
+            for i := 0; i < count; i += 1 {
+                if buf[i] == 0 {
+                    break
+                }
+
+                received = append(received, buf[i])
+            }
+
+            if count < SocketReadBufSize {
+                /* EOF */
                 break
             }
 
@@ -59,10 +68,9 @@ func (client *Client) Start() {
 
             iter += 1
         }
-        fmt.Println("Hostname:", client.Socket.LocalAddr(), "Result:", string(result))
 
         /* Respond */
-        gophorErr := serverRespond(client, result)
+        gophorErr := serverRespond(client, received)
         if gophorErr != nil {
             fmt.Fprintf(os.Stderr, gophorErr.Error() + "\n")
         }
@@ -70,14 +78,13 @@ func (client *Client) Start() {
 }
 
 func serverRespond(client *Client, data []byte) *GophorError {
-    path := socketBytesToString(data)
+    path := string(data)
     pathLen := len(path)
     
     var response []byte
     var gophorErr *GophorError
     var err error
-    if (pathLen == 1 && path == "\r") ||
-       (pathLen == 2 && path == "\r\n") {
+    if pathLen == 2 && path == "\r\n" {
         /* Empty line received, treat as dir listing for root */
         fd, err := os.Open(GopherMapFile)
         defer fd.Close()
@@ -97,8 +104,6 @@ func serverRespond(client *Client, data []byte) *GophorError {
                 return &GophorError{ SocketWriteCount, nil }
             }
         } else {
-            fmt.Fprintf(os.Stderr, "Error reading GopherMapFile, list dir / instead\n")
-
             /* Close fd, re-open directory instead */
             fd.Close()
             fd, err = os.Open("/")
@@ -110,6 +115,8 @@ func serverRespond(client *Client, data []byte) *GophorError {
             }
         }
     } else {
+        path = strings.Trim(path, "\r\n")
+
         fd, err := os.Open(path)
         if err != nil {
             return &GophorError{ FileOpen, err }
@@ -136,8 +143,6 @@ func serverRespond(client *Client, data []byte) *GophorError {
                         return gophorErr
                     }
                 } else {
-                    fmt.Fprintf(os.Stderr, "Error reading GopherMapFile, list dir instead: %s\n", path)
-
                     /* Get directory listing */
                     response, gophorErr = listDir(fd)
                     if gophorErr != nil {
@@ -159,10 +164,10 @@ func serverRespond(client *Client, data []byte) *GophorError {
         }
     }
     
-    /* Always finish LastLine bytes */
+    /* Always finish response with LastLine bytes */
     response = append(response, []byte(LastLine)...)
 
-    /* Serve response + always finish with period on a line */
+    /* Serve response */
     count, err := client.Socket.Write(response)
     if err != nil {
         return &GophorError{ SocketWrite, err }
@@ -173,37 +178,29 @@ func serverRespond(client *Client, data []byte) *GophorError {
     return nil
 }
 
-func socketBytesToString(slice []byte) string {
-    out := ""
-    /* Use constants here to get that sweet loop-unrolling boost */
-    for i := 0; i < SocketReadBufSize; i += 1 {
-        switch slice[i] {
-            case 0: break
-            default: out += string(slice[i])
-        }
-    }
-    return out
-}
-
 func readFile(fd *os.File) ([]byte, *GophorError) {
     var count int
-    fileContents := make([]byte, FileReadBufSize)
-    b := make([]byte, FileReadBufSize)
+    fileContents := make([]byte, 0)
+    buf := make([]byte, FileReadBufSize)
 
     var err error
     reader := bufio.NewReader(fd)
+
     for {
-        count, err = reader.Read(b)
-        if err != nil {
+        count, err = reader.Read(buf)
+        if err != nil && err != io.EOF {
             return nil, &GophorError{ FileRead, err }
-        } else if count == 0 {
-            /* Either undocumented error, or reached end of file */
-            break
+        }        
+
+        for i := 0; i < count; i += 1 {
+            if buf[i] == 0 {
+                break
+            }
+
+            fileContents = append(fileContents, buf[i])
         }
-        
-        fileContents = append(fileContents, b...)
+
         if count < FileReadBufSize {
-            /* EOF */
             break
         }
     }
@@ -238,7 +235,7 @@ func listDir(fd *os.File) ([]byte, *GophorError) {
                 itemType := getItemType(fullPath)
                 entity = newDirEntity(itemType, file.Name(), fullPath, *ServerHostname, *ServerPort)
                 dirContents = append(dirContents, entity.Bytes()...)
-                
+
             default:
                 /* Ignore */
                 fmt.Fprintf(os.Stderr, "List dir: skipping file %s of invalid type\n", file.Name())
