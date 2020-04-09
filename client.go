@@ -1,7 +1,7 @@
 package main
 
 import (
-    "fmt"
+    "log"
     "os"
     "io"
     "net"
@@ -44,10 +44,11 @@ func (client *Client) Start() {
         for {
             count, err = client.Socket.Read(buf)
             if err != nil {
-                fmt.Fprintf(os.Stderr, "Error reading from socket %s: %v\n", client.Socket, err)
+                log.Printf("Error reading from socket %s: %v\n", client.Socket, err)
                 return
             }
 
+            /* Stop once we hit null bytes */
             for i := 0; i < count; i += 1 {
                 if buf[i] == 0 {
                     break
@@ -62,7 +63,7 @@ func (client *Client) Start() {
             }
 
             if iter == MaxSocketReadChunks {
-                fmt.Fprintf(os.Stderr, "Reached max socket read size: %d. Closing connection...\n", MaxSocketReadChunks*SocketReadBufSize)
+                log.Printf("Reached max socket read size: %d. Closing connection...\n", MaxSocketReadChunks*SocketReadBufSize)
                 return
             }
 
@@ -72,7 +73,7 @@ func (client *Client) Start() {
         /* Respond */
         gophorErr := serverRespond(client, received)
         if gophorErr != nil {
-            fmt.Fprintf(os.Stderr, gophorErr.Error() + "\n")
+            log.Printf(gophorErr.Error() + "\n")
         }
     }()
 }
@@ -238,7 +239,7 @@ func listDir(fd *os.File) ([]byte, *GophorError) {
 
             default:
                 /* Ignore */
-                fmt.Fprintf(os.Stderr, "List dir: skipping file %s of invalid type\n", file.Name())
+                log.Printf("List dir: skipping file %s of invalid type\n", file.Name())
         }
     }
 

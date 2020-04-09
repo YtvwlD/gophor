@@ -1,9 +1,11 @@
 package main
 
 import (
+    "log"
     "fmt"
     "os"
     "syscall"
+    "os/signal"
     "flag"
     "net"
 )
@@ -14,6 +16,7 @@ import (
 const (
     ShowHidden = false
 
+    NewConnsBeforeClean = 5
     SocketReadBufSize = 512
     FileReadBufSize = 512
     MaxSocketReadChunks = 8
@@ -39,6 +42,10 @@ func main() {
     /* Parse run-time arguments */
     flag.Parse()
 
+    /* Setup logger */
+    log.SetOutput(os.Stderr)
+    log.SetFlags(0)
+
     /* Enter chroot */
     if enterChroot() != nil {
         os.Exit(1)
@@ -47,7 +54,7 @@ func main() {
     /* Set-up socket */
     listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *ServerHostname, *ServerPort))
     if err != nil {
-        fmt.Fprintf(os.Stderr, "Error opening socket on port %d: %v\n", *ServerPort, err)
+        log.Printf("Error opening socket on port %d: %v\n", *ServerPort, err)
         os.Exit(1)
     }
 
@@ -56,40 +63,77 @@ func main() {
     manager.Init()
     manager.Start()
 
+    /* Handle signals so we can _actually_ shutdown */
+    signals := make(chan os.Signal)
+    signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+    /* Listener accept channel */
+    accept := make(chan bool)
+
     /* Main server loop */
     count := 0
     for {
-        newConn, err := listener.Accept()
-        if err != nil {
-            fmt.Fprintf(os.Stderr, "Error accepting connection from %s: %v\n", newConn, err)
-            continue
-        }
+        var newConn net.Conn
+        var err error
 
-        client := new(Client)
-        client.Init(&newConn)
-        manager.Register<-client
+        /* By default, listener.Accept() IS blocking, but can't be used in a select case. This gets around that */
+        go func() {
+            newConn, err = listener.Accept()
+            accept<-true // signifies listened, newConn is ready
+        }()
 
-        if count == 5 {
-            manager.Cmd<-Clean
-            count = 0
-        } else {
-            count += 1
+        /* Block on waiting for new connection, or previously requested OS signal */
+        select {
+            case _ = <-accept:
+                if err != nil {
+                    log.Printf("Error accepting connection from %s: %v\n", newConn, err)
+                    continue
+                }
+
+                /* Add new client based on newConn to be managed */
+                client := new(Client)
+                client.Init(&newConn)
+                manager.Register<-client
+
+                /* Every __ new connections, request manager perform clean */
+                if count == NewConnsBeforeClean {
+                    manager.Cmd<-Clean
+                    count = 0
+                } else {
+                    count += 1
+                }
+
+            case sig := <-signals:
+                log.Printf("Received signal %v, waiting to finish up... (hit CTRL-C to terminate without cleanup)\n", sig)
+                for {
+                    select {
+                        case manager.Cmd<-Stop:
+                            /* wait on clean */
+                            log.Printf("Clean-up finished, exiting now...\n")
+                            os.Exit(0)
+
+                        case sig = <-signals:
+                            if sig == syscall.SIGTERM {
+                                log.Printf("Stopping NOW.\n")
+                                os.Exit(1)
+                            }
+                            continue
+                    }
+                }
+            }
         }
     }
-
-    /* Handle stopping */
-}
 
 func enterChroot() error {
     err := syscall.Chdir(*ServerRoot)
     if err != nil {
-        fmt.Fprintf(os.Stderr, "Error changing dir to server root %s: %v\n", *ServerRoot, err)
+        log.Printf("Error changing dir to server root %s: %v\n", *ServerRoot, err)
         return err
     }
 
     err = syscall.Chroot(*ServerRoot)
     if err != nil {
-        fmt.Fprintf(os.Stderr, "Error chroot'ing into server root %s: %v\n", *ServerRoot, err)
+        log.Printf("Error chroot'ing into server root %s: %v\n", *ServerRoot, err)
         return err
     }
     

@@ -22,12 +22,12 @@ func (manager *ClientManager) Start() {
                     /* Received manager command, handle! */
                     switch cmd {
                         case Stop:
-                            /* Stop all clients then delete, break out of run loop */
+                            /* Stop and delete all clients, then return */
                             for client := range manager.Clients {
                                 client.Cmd<-Stop
                                 delete(manager.Clients, client)
                             }
-                            break
+                            return
 
                         case Clean:
                             /* Delete all 'done' clients */
