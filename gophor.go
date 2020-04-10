@@ -15,11 +15,10 @@ import (
  * work as expected (all I ever run into is 'operation not supported'). Which from reading
  * seems to be a result of Linux not always performing setuid/setgid constistent with the
  * Unix expected result. Then mix that with GoLang's goroutines acting like threads but
- * not quite the same as threads (they don't map 1:1) and having a bunch of niceties built-in
- * like automatic memory sharing, scheduling etc... I can see why they're not fully supported.
+ * not quite the same... I can see why they're not fully supported.
  *
  * Instead we're going to take C-bindings and call them directly ourselves, BEFORE spawning
- * any goroutines.
+ * any goroutines to prevent fuckery.
  *
  * Oh god here we go...
  */
