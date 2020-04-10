@@ -25,11 +25,11 @@ type ClientManager struct {
 }
 
 func (manager *ClientManager) Init() {
-    manager.Clients    = make(map[*Client]bool)
-    manager.Signals    = make(chan os.Signal)
-    manager.Register   = make(chan *Client)
-    manager.Message    = make(chan ManagerMsg)
-    manager.SleepTime  = time.Second
+    manager.Clients   = make(map[*Client]bool)
+    manager.Signals   = make(chan os.Signal)
+    manager.Register  = make(chan *Client)
+    manager.Message   = make(chan ManagerMsg)
+    manager.SleepTime = time.Second
 }
 
 func (manager *ClientManager) Start() {
