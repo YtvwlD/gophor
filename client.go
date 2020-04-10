@@ -11,18 +11,21 @@ import (
     "strings"
 )
 
+type ClientMsg int
+/* unused for now */
+
+type Client struct {
+    Message chan ClientMsg
+    Socket  net.Conn
+}
+
 const (
     GopherMapFile = "/gophermap"
 )
 
-type Client struct {
-    Cmd    chan Command
-    Socket net.Conn
-}
-
 func (client *Client) Init(conn *net.Conn) {
-    client.Cmd    = make(chan Command)
-    client.Socket = *conn
+    client.Message = make(chan ClientMsg)
+    client.Socket  = *conn
 }
 
 func (client *Client) Start() {
@@ -30,7 +33,7 @@ func (client *Client) Start() {
         defer func() {
             /* Close-up shop */
             client.Socket.Close()
-            close(client.Cmd)
+            close(client.Message)
         }()
 
         var count int
@@ -88,7 +91,7 @@ func (client *Client) SendError(format string, args ...interface{}) {
 
     /* Format error message and append to response */
     message := fmt.Sprintf(format, args...)
-    response = append(response, []byte(message)...)
+    response = append(response, []byte(message + CrLf)...)
     response = append(response, []byte(LastLine)...)
 
     /* We're sending an error, if this fails then fuck it lol */

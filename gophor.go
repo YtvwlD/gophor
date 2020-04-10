@@ -57,7 +57,7 @@ var (
     ServerPort     = flag.Int("port", 70, "server listening port")
     ServerHostname = flag.String("hostname", "127.0.0.1", "server hostname")
     ServerUid      = flag.Int("uid", 1000, "UID to run server under")
-    ServerGid      = flag.Int("gid", 1000, "GID to run server under")
+    ServerGid      = flag.Int("gid", 100, "GID to run server under")
     UseChroot      = flag.Bool("use-chroot", true, "chroot into the server directory")
 )
 
@@ -87,59 +87,36 @@ func main() {
     /* Set privileges, see function definition for better explanation */
     setPrivileges()
 
-    /* Setup client manager */
+    /* Setup manager */
     manager := new(ClientManager)
     manager.Init()
-    manager.Start()
 
-    /* Handle signals so we can _actually_ shutdown */
-    signals := make(chan os.Signal)
-    signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+    /* Handle signals so we can _actually_ shutdowm */
+    signal.Notify(manager.Signals, syscall.SIGINT, syscall.SIGTERM)
+
+    /* Start the manager */
+    manager.Start()
 
     /* listener.Accept() server loop, in its own go-routine */
     go func() {
-        count := 0
         for {
             newConn, err := listener.Accept()
             if err != nil {
                 log.Fatalf("Error accepting connection: %s\n", err.Error())
             }
 
-            /* Create Client from newConn and register with the manager */
-            client := new(Client)
-            client.Init(&newConn)
-            manager.Register<-client // this starts the Client go-routine
-
-            /* Every 'NewConnsBeforeClean' connections, request that manager perform clean */
-            if count == NewConnsBeforeClean {
-                manager.Cmd<-Clean
-                count = 0
-            } else {
-                count += 1
-            }
+            go func() {
+                /* Create Client from newConn and register with the manager */
+                client := new(Client)
+                client.Init(&newConn)
+                manager.Register<-client
+            }()
         }
     }()
 
-    /* Main thread sits and listens for OS signals */
-    for {
-        sig := <-signals
-        log.Printf("Received signal %v, waiting to finish up... (hit CTRL-C to terminate without cleanup)\n", sig)
-
-        for {
-            select {
-                case manager.Cmd<-Stop:
-                    /* wait on clean */
-                    log.Printf("Clean-up finished, exiting now...\n")
-                    os.Exit(0)
-
-                case sig = <-signals:
-                    if sig == syscall.SIGTERM {
-                        log.Fatalf("Stopping NOW.\n")
-                    }
-                    continue
-            }
-        }
-    }
+    /* When manager message channel closes, we all done */
+    <-manager.Message
+    os.Exit(0)
 }
 
 func enterServerDir() {

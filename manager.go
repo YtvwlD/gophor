@@ -1,59 +1,121 @@
 package main
 
+import (
+    "os"
+    "log"
+    "time"
+//    "syscall"
+)
+
+type ManagerMsg int
+const (
+    /* FROM manager */
+    Done      ManagerMsg = iota
+
+    /* TO manager */
+    RemoveOld ManagerMsg = iota
+
+    /* Internal */
+    FinishUp  ManagerMsg = iota
+)
+
 type ClientManager struct {
-    Cmd        chan Command
     Clients    map[*Client]bool
-    Register   chan *Client
-    Unregister chan *Client
+    Signals    chan os.Signal   // OS sends, manager receives
+    Register   chan *Client     // User sends, manager receives
+    Message    chan ManagerMsg  // User and manager, send / receive
+    SleepTime  time.Duration
 }
 
 func (manager *ClientManager) Init() {
-    manager.Cmd        = make(chan Command)
     manager.Clients    = make(map[*Client]bool)
+    manager.Signals    = make(chan os.Signal)
     manager.Register   = make(chan *Client)
-    manager.Unregister = make(chan *Client)
+    manager.Message    = make(chan ManagerMsg)
+    manager.SleepTime  = time.Second
 }
 
 func (manager *ClientManager) Start() {
+    /* Internal channel to stop cleaner goroutine */
+    cleanup := make(chan bool)
+
+    /* Main manager goroutine */
     go func() {
+        defer func() {
+            /* We should have exited before this, but :shrug: */
+            close(manager.Register)
+            close(manager.Signals)
+            close(manager.Message)
+        }()
+
         for {
             select {
-                case cmd := <-manager.Cmd:
-                    /* Received manager command, handle! */
-                    switch cmd {
-                        case Stop:
-                            /* Stop and delete all clients, then return */
-                            for client := range manager.Clients {
-                                client.Cmd<-Stop
-                                delete(manager.Clients, client)
-                            }
-                            return
-
-                        case Clean:
-                            /* Delete all 'done' clients */
-                            for client := range manager.Clients {
-                                select {
-                                    case <-client.Cmd:
-                                        /* Channel closed, client done, delete! */
-                                        delete(manager.Clients, client)
-                                    default:
-                                        /* Don't lock :) */
-                                }
-                            }
-                    }
-
+                /* New client received */
                 case client := <-manager.Register:
-                    /* Received new client to register */
+                    /* TODO: decrease SleepTime for when more connections added */
                     manager.Clients[client] = true
                     client.Start()
 
-                case client := <-manager.Unregister:
-                    /* Received client id to unregister */
-                    if _, ok := manager.Clients[client]; ok {
-                        client.Cmd<-Stop
-                        delete(manager.Clients, client)
+                /* Message receieved */
+                case msg := <-manager.Message:
+                    switch msg {
+                        default:
+                            /* do nothing */
                     }
+
+                /* OS signal received */
+                case sig := <-manager.Signals:
+                    log.Printf("SIGNAL RECEIVED: %v\n", sig)
+                        log.Printf("Received %v, waiting on cleanup before exit... (ctrl-c again to stop NOW)\n", sig)
+                        cleanup<-true
+                        select {
+                            case sig = <-manager.Signals:
+                                log.Printf("Signal received again, exiting now.\n")
+                                return
+                            case <-cleanup:
+                                return
+                        }
             }
         }
     }()
+
+     /* Start cleaner goroutine in background */
+    go manager.Cleaner(cleanup)
+}
+
+func (manager *ClientManager) Cleaner(cleanup chan bool) {
+    finishUp := false
+    for {
+        /* Check for cleanup signal */
+        select {
+            case _ = <-cleanup:
+                finishUp = true
+            default:
+                /* do nothing */
+        }
+
+        for client := range manager.Clients {
+            select {
+                case <-client.Message:
+                    delete(manager.Clients, client)
+                default:
+                    /* do nothing */
+            }
+        }
+
+        if finishUp {
+            break
+        } else {
+            time.Sleep(manager.SleepTime)
+        }
+    }
+
+    /* Final cleanup */
+    for client := range manager.Clients {
+        <-client.Message
+        delete(manager.Clients, client)
+    }
+
+    /* Close the cleanup channel -- indicates we're done! */
+    close(cleanup)
 }
