@@ -11,6 +11,9 @@ const (
     End  = "."
     LastLine = End+CrLf
     Tab  = byte('\t')
+
+    MaxUserNameLen = 70  /* RFC 1436 standard */
+    MaxSelectorLen = 255 /* RFC 1436 standard */
 )
 
 type ItemType byte
@@ -36,7 +39,7 @@ const (
 
     TypeRedundant     = ItemType('+') /* Redundant server */
 
-    /* Non-standard */
+    /* Non-standard - as used by https://github.com/prologic/go-gopher */
     TypeInfo          = ItemType('i') /* Informational message */
     TypeHtml          = ItemType('h') /* HTML document */
     TypeAudio         = ItemType('s') /* Audio file */
@@ -47,6 +50,9 @@ const (
     TypeDefault       = TypeBin
 )
 
+/*
+ * Helps with debugging at points
+ */
 func (i ItemType) String() string {
     switch i {
         case TypeFile:
@@ -106,11 +112,19 @@ type DirEntity struct {
 func newDirEntity(t ItemType, name, selector, host string, port int) *DirEntity {
     entity := new(DirEntity)
     entity.Type = t
+
+    /* Truncate username if we hit MaxUserNameLen */
+    if len(name) > MaxUserNameLen {
+        name = name[:MaxUserNameLen-1]
+    }
     entity.UserName = name
-    if len(selector) > 255 {
-        selector = selector[:254]
+
+    /* Truncate selector if we hit MaxSelectorLen */
+    if len(selector) > MaxSelectorLen {
+        selector = selector[:MaxSelectorLen-1]
     }
     entity.Selector = selector
+
     entity.Host = host
     entity.Port = strconv.Itoa(port)
     return entity

@@ -10,19 +10,21 @@ import (
 type ErrorCode int
 const (
     /* Filesystem */
-    FileStat         ErrorCode = iota
-    FileOpen         ErrorCode = iota
-    FileRead         ErrorCode = iota
-    FileType         ErrorCode = iota
-    DirList          ErrorCode = iota
+    PathEnumerationErr  ErrorCode = iota
+    IllegalPathErr      ErrorCode = iota
+    FileStatErr         ErrorCode = iota
+    FileOpenErr         ErrorCode = iota
+    FileReadErr         ErrorCode = iota
+    FileTypeErr         ErrorCode = iota
+    DirListErr          ErrorCode = iota
     
     /* Sockets */
-    SocketWrite      ErrorCode = iota
-    SocketWriteCount ErrorCode = iota
+    SocketWriteErr      ErrorCode = iota
+    SocketWriteCountErr ErrorCode = iota
     
     /* Parsing */
-    EmptyItemType    ErrorCode = iota
-    EntityPortParse  ErrorCode = iota
+    EmptyItemTypeErr    ErrorCode = iota
+    EntityPortParseErr  ErrorCode = iota
 )
 
 type GophorError struct {
@@ -33,25 +35,29 @@ type GophorError struct {
 func (e *GophorError) Error() string {
     var str string
     switch e.Code {
-        case FileStat:
+        case PathEnumerationErr:
+            str = "path enumeration fail"
+        case IllegalPathErr:
+            str = "illegal path requested"
+        case FileStatErr:
             str = "file stat fail"
-        case FileOpen:
+        case FileOpenErr:
             str = "file open fail"
-        case FileRead:
+        case FileReadErr:
             str = "file read fail"
-        case FileType:
+        case FileTypeErr:
             str = "invalid file type"
-        case DirList:
+        case DirListErr:
             str = "directory read fail"
 
-        case SocketWrite:
+        case SocketWriteErr:
             str = "socket write fail"
-        case SocketWriteCount:
+        case SocketWriteCountErr:
             str = "socket write count mismatch"
 
-        case EmptyItemType:
+        case EmptyItemTypeErr:
             str = "line string provides no dir entity type"
-        case EntityPortParse:
+        case EntityPortParseErr:
             str = "parsing dir entity port"
 
         default:

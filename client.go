@@ -2,6 +2,7 @@ package main
 
 import (
     "log"
+    "fmt"
     "os"
     "io"
     "net"
@@ -44,7 +45,7 @@ func (client *Client) Start() {
         for {
             count, err = client.Socket.Read(buf)
             if err != nil {
-                log.Printf("Error reading from socket %s: %v\n", client.Socket, err)
+                client.Log("Error reading from socket %s: %v\n", client.Socket, err.Error())
                 return
             }
 
@@ -63,7 +64,7 @@ func (client *Client) Start() {
             }
 
             if iter == MaxSocketReadChunks {
-                log.Printf("Reached max socket read size: %d. Closing connection...\n", MaxSocketReadChunks*SocketReadBufSize)
+                client.Log("Reached max socket read size: %d. Closing connection...\n", MaxSocketReadChunks*SocketReadBufSize)
                 return
             }
 
@@ -78,102 +79,132 @@ func (client *Client) Start() {
     }()
 }
 
+func (client *Client) Log(format string, args ...interface{}) {
+    log.Printf(client.Socket.RemoteAddr().String()+" "+format, args...)
+}
+
+func (client *Client) SendError(format string, args ...interface{}) {
+    response := make([]byte, 0)
+    response = append(response, byte(TypeError))
+
+    /* Format error message and append to response */
+    message := fmt.Sprintf(format, args...)
+    response = append(response, []byte(message)...)
+    response = append(response, []byte(LastLine)...)
+
+    /* We're sending an error, if this fails then fuck it lol */
+    client.Socket.Write(response)
+}
+
 func serverRespond(client *Client, data []byte) *GophorError {
-    path := string(data)
-    pathLen := len(path)
-    
+    /* Clean initial data:
+     * Should usually start with a '/' since the selector response we send
+     * starts with a '/' client formatting reasons.
+     */
+    dataStr := strings.TrimPrefix(strings.TrimSuffix(string(data), CrLf), "/")
+
+    /* Clean path and get shortest possible from current directory */
+    requestPath := path.Clean(dataStr)
+
+    /* Ensure alway a relative paths + WITHIN ServerDir, serve them root otherwise */
+    if strings.HasPrefix(requestPath, "/") || strings.HasPrefix(requestPath, "..") {
+        client.Log("Illegal path requested: %s\n", dataStr)
+        requestPath = "."
+    }
+
     var response []byte
     var gophorErr *GophorError
     var err error
-    if pathLen == 2 && path == "\r\n" {
-        /* Empty line received, treat as dir listing for root */
-        fd, err := os.Open(GopherMapFile)
-        defer fd.Close()
 
-        if err == nil {
-            /* Read GopherMapFile contents */
-            fileContents, gophorErr := readFile(fd)
-            if gophorErr != nil {
-                return gophorErr
-            }
+    /* Open requestPath */
+    fd, err := os.Open(requestPath)
+    if err != nil {
+        client.SendError("%s read fail\n", requestPath) /* Purposely vague errors */ 
+        return &GophorError{ FileOpenErr, err }
+    }
+    defer fd.Close()
 
-            /* Serve GopherMapFile */
-            count, err := client.Socket.Write(fileContents)
-            if err != nil {
-                return &GophorError{ SocketWrite, err }
-            } else if count != len(fileContents) {
-                return &GophorError{ SocketWriteCount, nil }
-            }
-        } else {
-            /* Close fd, re-open directory instead */
-            fd.Close()
-            fd, err = os.Open("/")
+    /* Leads to some more concise code below */
+    type FileType int
+    const(
+        File FileType = iota
+        Dir  FileType = iota
+        Bad  FileType = iota
+    )
 
-            /* Get directory listing */
-            response, gophorErr = listDir(fd)
-            if gophorErr != nil {
-                return gophorErr
-            }
-        }
-    } else {
-        path = strings.Trim(path, "\r\n")
-
-        fd, err := os.Open(path)
-        if err != nil {
-            return &GophorError{ FileOpen, err }
-        }
-        defer fd.Close()
-
+    /* If not empty requestPath, check file type */
+    fileType := Dir
+    if requestPath != "." {
         stat, err := fd.Stat()
         if err != nil {
-            return &GophorError{ FileStat, err }
+            client.SendError("%s read fail\n", requestPath) /* Purposely vague errors */
+            return &GophorError{ FileStatErr, err }
         }
 
-        /* Determine if path or directory */
         switch {
-            /* Directory */
             case stat.Mode() & os.ModeDir != 0:
-                /* First try to serve gopher map */
-                fd2, err := os.Open(path + GopherMapFile)
-                defer fd2.Close()
-
-                if err == nil {
-                    /* Read GopherMapFile contents */
-                    response, gophorErr = readFile(fd2)
-                    if gophorErr != nil {
-                        return gophorErr
-                    }
-                } else {
-                    /* Get directory listing */
-                    response, gophorErr = listDir(fd)
-                    if gophorErr != nil {
-                        return gophorErr
-                    }
-                }
-
-            /* Regular file */
+                // do nothing :)
             case stat.Mode() & os.ModeType == 0:
-                /* Read file contents */
-                response, gophorErr = readFile(fd)
-                if gophorErr != nil {
-                    return gophorErr
-                }
-
-            /* Unsupport file type */
+                fileType = File
             default:
-                return &GophorError{ FileType, nil }
+                fileType = Bad
         }
     }
-    
+
+    /* Handle Dir / File / error otherwise */
+    switch fileType {
+        /* Directory */
+        case Dir:
+            /* First try to serve gopher map */
+            requestPath = path.Join(requestPath, GopherMapFile)
+            fd2, err := os.Open(requestPath)
+            defer fd2.Close()
+
+            if err == nil {
+                /* Read GopherMapFile contents */
+                client.Log("%s SERVER GOPHERMAP: %s\n", fd2.Name())
+
+                response, gophorErr = readFile(fd2)
+                if gophorErr != nil {
+                    client.SendError("%s read fail\n", fd2.Name())
+                    return gophorErr
+                }
+            } else {
+                /* Get directory listing */
+                client.Log("SERVE DIR: %s\n", fd.Name())
+
+                response, gophorErr = listDir(fd)
+                if gophorErr != nil {
+                    client.SendError("%s dir list fail\n", fd.Name())
+                    return gophorErr
+                }
+            }
+
+        /* Regular file */
+        case File:
+            /* Read file contents */
+            client.Log("SERVE FILE: %s\n", fd.Name())
+
+            response, gophorErr = readFile(fd)
+            if gophorErr != nil {
+                client.SendError("%s read fail\n", fd.Name())
+                return gophorErr
+            }
+
+        /* Unsupport file type */
+        default:
+            return &GophorError{ FileTypeErr, nil }
+    }
+
     /* Always finish response with LastLine bytes */
     response = append(response, []byte(LastLine)...)
 
     /* Serve response */
     count, err := client.Socket.Write(response)
     if err != nil {
-        return &GophorError{ SocketWrite, err }
+        return &GophorError{ SocketWriteErr, err }
     } else if count != len(response) {
-        return &GophorError{ SocketWriteCount, nil }
+        return &GophorError{ SocketWriteCountErr, nil }
     }
 
     return nil
@@ -190,7 +221,7 @@ func readFile(fd *os.File) ([]byte, *GophorError) {
     for {
         count, err = reader.Read(buf)
         if err != nil && err != io.EOF {
-            return nil, &GophorError{ FileRead, err }
+            return nil, &GophorError{ FileReadErr, err }
         }        
 
         for i := 0; i < count; i += 1 {
@@ -212,7 +243,7 @@ func readFile(fd *os.File) ([]byte, *GophorError) {
 func listDir(fd *os.File) ([]byte, *GophorError) {
     files, err := fd.Readdir(-1)
     if err != nil {
-        return nil, &GophorError{ DirList, err }
+        return nil, &GophorError{ DirListErr, err }
     }
 
     var entity *DirEntity
@@ -226,20 +257,19 @@ func listDir(fd *os.File) ([]byte, *GophorError) {
         switch {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory! */
-                fullPath := path.Join(fd.Name(), file.Name())
-                entity = newDirEntity(TypeDirectory, file.Name(), fullPath, *ServerHostname, *ServerPort)
+                itemPath := path.Join(fd.Name(), file.Name())
+                entity = newDirEntity(TypeDirectory, file.Name(), "/"+itemPath, *ServerHostname, *ServerPort)
                 dirContents = append(dirContents, entity.Bytes()...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file */
-                fullPath := path.Join(fd.Name(), file.Name())
-                itemType := getItemType(fullPath)
-                entity = newDirEntity(itemType, file.Name(), fullPath, *ServerHostname, *ServerPort)
+                itemPath := path.Join(fd.Name(), file.Name())
+                itemType := getItemType(itemPath)
+                entity = newDirEntity(itemType, file.Name(), "/"+itemPath, *ServerHostname, *ServerPort)
                 dirContents = append(dirContents, entity.Bytes()...)
 
             default:
                 /* Ignore */
-                log.Printf("List dir: skipping file %s of invalid type\n", file.Name())
         }
     }
 
