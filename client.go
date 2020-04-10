@@ -91,7 +91,7 @@ func (client *Client) SendError(format string, args ...interface{}) {
 
     /* Format error message and append to response */
     message := fmt.Sprintf(format, args...)
-    response = append(response, []byte(message + CrLf)...)
+    response = append(response, []byte(message)...)
     response = append(response, []byte(LastLine)...)
 
     /* We're sending an error, if this fails then fuck it lol */

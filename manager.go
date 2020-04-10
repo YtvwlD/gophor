@@ -62,16 +62,15 @@ func (manager *ClientManager) Start() {
 
                 /* OS signal received */
                 case sig := <-manager.Signals:
-                    log.Printf("SIGNAL RECEIVED: %v\n", sig)
-                        log.Printf("Received %v, waiting on cleanup before exit... (ctrl-c again to stop NOW)\n", sig)
-                        cleanup<-true
-                        select {
-                            case sig = <-manager.Signals:
-                                log.Printf("Signal received again, exiting now.\n")
-                                return
-                            case <-cleanup:
-                                return
-                        }
+                    log.Printf("Received %v, waiting on cleanup before exit... (ctrl-c again to stop NOW)\n", sig)
+                    cleanup<-true
+                    select {
+                        case sig = <-manager.Signals:
+                            log.Printf("Signal received again, exiting now.\n")
+                            return
+                        case <-cleanup:
+                            return
+                    }
             }
         }
     }()
