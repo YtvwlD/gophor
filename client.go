@@ -51,7 +51,7 @@ func (client *Client) Start() {
             }
 
             /* Only copy non-null bytes */
-            received = append(received, buf[:count])
+            received = append(received, buf[:count]...)
 
             /* If count is less than expected read size, we've hit EOF */
             if count < SocketReadBufSize {
@@ -61,7 +61,7 @@ func (client *Client) Start() {
 
             /* Hit max read chunk size, send error + close connection */
             if iter == MaxSocketReadChunks {
-                client.Error("max socket read size reached\n")
+                client.SendError("max socket read size reached\n")
                 client.Log("Reached max socket read size: %d. Closing connection...\n", MaxSocketReadChunks*SocketReadBufSize)
                 return
             }
