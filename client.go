@@ -43,31 +43,30 @@ func (client *Client) Start() {
         /* Buffered read from listener */
         iter := 0
         for {
+            /* Buffered read from listener */
             count, err = client.Socket.Read(buf)
             if err != nil {
                 client.Log("Error reading from socket %s: %v\n", client.Socket, err.Error())
                 return
             }
 
-            /* Stop once we hit null bytes */
-            for i := 0; i < count; i += 1 {
-                if buf[i] == 0 {
-                    break
-                }
+            /* Only copy non-null bytes */
+            received = append(received, buf[:count])
 
-                received = append(received, buf[i])
-            }
-
+            /* If count is less than expected read size, we've hit EOF */
             if count < SocketReadBufSize {
                 /* EOF */
                 break
             }
 
+            /* Hit max read chunk size, send error + close connection */
             if iter == MaxSocketReadChunks {
+                client.Error("max socket read size reached\n")
                 client.Log("Reached max socket read size: %d. Closing connection...\n", MaxSocketReadChunks*SocketReadBufSize)
                 return
             }
 
+            /* Keep count :) */
             iter += 1
         }
 
