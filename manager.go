@@ -14,9 +14,6 @@ const (
 
     /* TO manager */
     RemoveOld ManagerMsg = iota
-
-    /* Internal */
-    FinishUp  ManagerMsg = iota
 )
 
 type ClientManager struct {
