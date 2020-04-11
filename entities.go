@@ -10,7 +10,7 @@ const (
     CrLf = "\r\n"
     End  = "."
     LastLine = End+CrLf
-    Tab  = "\t"
+    Tab  = byte('\t')
 
     MaxUserNameLen = 70  /* RFC 1436 standard */
     MaxSelectorLen = 255 /* RFC 1436 standard */
@@ -104,12 +104,16 @@ func newDirEntity(t ItemType, name, selector, host string, port int) *DirEntity 
 func (entity *DirEntity) Bytes() []byte {
     b := []byte{}
     b = append(b, byte(entity.Type))
-    b = append(b, []byte(entity.UserName+Tab)...)
-    b = append(b, []byte(entity.Selector+Tab)...)
-    b = append(b, []byte(entity.Host+Tab)...)
+    b = append(b, []byte(entity.UserName)...)
+    b = append(b, Tab)
+    b = append(b, []byte(entity.Selector)...)
+    b = append(b, Tab)
+    b = append(b, []byte(entity.Host)...)
+    b = append(b, Tab)
     b = append(b, []byte(entity.Port)...)
     if entity.Extras != "" {
-        b = append(b, []byte(Tab+entity.Extras)...)
+        b = append(b, Tab)
+        b = append(b, []byte(entity.Extras)...)
     }
     b = append(b, []byte(CrLf)...)
     return b

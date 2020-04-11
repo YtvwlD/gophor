@@ -23,6 +23,7 @@ const (
     SocketWriteCountErr ErrorCode = iota
     
     /* Parsing */
+    InvalidRequestErr   ErrorCode = iota
     EmptyItemTypeErr    ErrorCode = iota
     EntityPortParseErr  ErrorCode = iota
 )
@@ -55,6 +56,8 @@ func (e *GophorError) Error() string {
         case SocketWriteCountErr:
             str = "socket write count mismatch"
 
+        case InvalidRequestErr:
+            str = "invalid request data"
         case EmptyItemTypeErr:
             str = "line string provides no dir entity type"
         case EntityPortParseErr:
