@@ -58,85 +58,95 @@ var (
     ServerHostname = flag.String("hostname", "127.0.0.1", "server hostname")
     ServerUid      = flag.Int("uid", 1000, "UID to run server under")
     ServerGid      = flag.Int("gid", 100, "GID to run server under")
-    UseChroot      = flag.Bool("use-chroot", true, "chroot into the server directory")
+    NoChroot       = flag.Bool("no-chroot", false, "don't chroot into the server directory")
+    SystemLogPath  = flag.String("system-log", "", "system log path")
+    AccessLogPath  = flag.String("access-log", "", "access log path")
 )
 
 func main() {
-    /* Parse run-time arguments */
-    flag.Parse()
-
-    /* Setup logger */
+    /* Setup global logger */
     log.SetOutput(os.Stderr)
     log.SetFlags(0)
 
+    /* Parse run-time arguments */
+    flag.Parse()
+    if flag.NFlag() == 0 {
+        log.Printf("Usage: gophor ...\n")
+        flag.PrintDefaults()
+        os.Exit(1)
+    }
+
+    /* Setup _OUR_ loggers */
+    loggingSetup(*SystemLogPath, *AccessLogPath)
+
     /* Enter server dir */
     enterServerDir()
+    logSystem("Entered server directory: %s\n", *ServerRoot)
 
     /* Try enter chroot if requested */
-    if *UseChroot {
+    if !*NoChroot {
         chrootServerDir()
+        logSystem("Chroot success, new root: %s\n", *ServerRoot)
     }
 
     /* Set-up socket while we still have privileges (if held) */
     listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *ServerHostname, *ServerPort))
     if err != nil {
-        log.Fatalf("Error opening socket on port %d: %s\n", *ServerPort, err.Error())
+        logSystemFatal("Error opening socket on port %d: %s\n", *ServerPort, err.Error())
     }
     defer listener.Close()
+    logSystem("Listening: gopher://%s\n", listener.Addr())
 
     /* Set privileges, see function definition for better explanation */
     setPrivileges()
 
-    /* Setup manager */
-    manager := new(ClientManager)
-    manager.Init()
-
     /* Handle signals so we can _actually_ shutdowm */
-    signal.Notify(manager.Signals, syscall.SIGINT, syscall.SIGTERM)
-
-    /* Start the manager */
-    manager.Start()
+    signals := make(chan os.Signal)
+    signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
     /* listener.Accept() server loop, in its own go-routine */
     go func() {
         for {
             newConn, err := listener.Accept()
             if err != nil {
-                log.Fatalf("Error accepting connection: %s\n", err.Error())
+                logSystemError("Error accepting connection: %s\n", err.Error())
+                continue
             }
 
             go func() {
                 /* Create Client from newConn and register with the manager */
                 client := new(Client)
                 client.Init(&newConn)
-                manager.Register<-client
+                client.Start()
             }()
         }
     }()
 
-    /* When manager message channel closes, we all done */
-    <-manager.Message
+    /* When OS signal received, we close-up */
+    sig := <-signals
+    logSystem("Signal received: %v. Shutting down...\n", sig)
     os.Exit(0)
 }
 
 func enterServerDir() {
     err := syscall.Chdir(*ServerRoot)
     if err != nil {
-        log.Fatalf("Error changing dir to server root %s: %s\n", *ServerRoot, err.Error())
+        logSystemFatal("Error changing dir to server root %s: %s\n", *ServerRoot, err.Error())
     }
 }
 
 func chrootServerDir() {
     err := syscall.Chroot(*ServerRoot)
     if err != nil {
-        log.Fatalf("Error chroot'ing into server root %s: %s\n", *ServerRoot, err.Error())
+        logSystemFatal("Error chroot'ing into server root %s: %s\n", *ServerRoot, err.Error())
     }
+    ServerDir = "/"
 }
 
 func setPrivileges() {
     /* Check root privileges aren't being requested */
     if *ServerUid == 0 || *ServerGid == 0 {
-        log.Fatalf("Gophor does not support directly running as root\n")
+        logSystemFatal("Gophor does not support directly running as root\n")
     }
 
     /* Get currently running user info */
@@ -147,7 +157,7 @@ func setPrivileges() {
         /* C-bind setgid */
         result := C.setgid(C.uint(*ServerGid))
         if result != 0 {
-            log.Fatalf("Failed setting GID %d: %d\n", *ServerGid, result)
+            logSystemFatal("Failed setting GID %d: %d\n", *ServerGid, result)
         }
     }
 
@@ -156,7 +166,7 @@ func setPrivileges() {
         /* C-bind setuid */
         result := C.setuid(C.uint(*ServerUid))
         if result != 0 {
-            log.Fatalf("Failed setting UID %d: %d\n", *ServerUid, result)
+            logSystemFatal("Failed setting UID %d: %d\n", *ServerUid, result)
         }
     }
 }

@@ -65,8 +65,8 @@ func (e *GophorError) Error() string {
     }
 
     if e.Err != nil {
-        return fmt.Sprintf("GophorError: %s (%s)", str, e.Err.Error())
+        return fmt.Sprintf("%s (%s)", str, e.Err.Error())
     } else {
-        return fmt.Sprintf("GophorError: %s", str)
+        return fmt.Sprintf("%s", str)
     }
 }
