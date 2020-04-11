@@ -29,38 +29,21 @@ import (
 import "C"
 
 /*
- * Global Constants
- */
-const (
-    ShowHidden = false
-
-    NewConnsBeforeClean = 5
-    SocketReadBufSize = 512
-    FileReadBufSize = 512
-    MaxSocketReadChunks = 4
-)
-
-type Command int
-const (
-    Stop  Command = iota
-    Clean Command = iota
-)
-
-/*
  * Gopher server
  */
 var (
     ServerDir = ""
 
-    /* Run-time arguments */
-    ServerRoot     = flag.String("root", "/var/gopher", "server root directory")
-    ServerPort     = flag.Int("port", 70, "server listening port")
-    ServerHostname = flag.String("hostname", "127.0.0.1", "server hostname")
-    ServerUid      = flag.Int("uid", 1000, "UID to run server under")
-    ServerGid      = flag.Int("gid", 100, "GID to run server under")
-    NoChroot       = flag.Bool("no-chroot", false, "don't chroot into the server directory")
-    SystemLogPath  = flag.String("system-log", "", "system log path")
-    AccessLogPath  = flag.String("access-log", "", "access log path")
+    ServerRoot     = flag.String("root", "/var/gopher", "Change server root directory.")
+    ServerHostname = flag.String("hostname", "localhost", "Change server hostname (FQDN).")
+    ServerPort     = flag.Int("port", 70, "Change server port (0 to disable unencrypted traffic).")
+//    ServerTlsPort  = flag.Int("tls-port", 0, "Change server TLS/SSL port (0 to disable).")
+//    ServerTlsCert  = flag.String("cert", "", "Change server TLS/SSL cert file.")
+    ExecAsUid      = flag.Int("uid", 1000, "Change UID to drop executable privileges to.")
+    ExecAsGid      = flag.Int("gid", 100, "Change GID to drop executable privileges to.")
+    NoChroot       = flag.Bool("no-chroot", false, "Disable using chroot for server root directory.")
+    SystemLog      = flag.String("system-log", "", "Change server system log file (blank outputs to stderr).")
+    AccessLog      = flag.String("access-log", "", "Change server access log file (blank outputs to stderr).")
 )
 
 func main() {
@@ -71,13 +54,12 @@ func main() {
     /* Parse run-time arguments */
     flag.Parse()
     if flag.NFlag() == 0 {
-        log.Printf("Usage: gophor ...\n")
-        flag.PrintDefaults()
-        os.Exit(1)
+        flag.Usage()
+        os.Exit(0)
     }
 
     /* Setup _OUR_ loggers */
-    loggingSetup(*SystemLogPath, *AccessLogPath)
+    loggingSetup(*SystemLog, *AccessLog)
 
     /* Enter server dir */
     enterServerDir()
@@ -87,6 +69,10 @@ func main() {
     if !*NoChroot {
         chrootServerDir()
         logSystem("Chroot success, new root: %s\n", *ServerRoot)
+        ServerDir = "/"
+    } else {
+        logSystem("Flag 'no-chroot', selected\n")
+        ServerDir = *ServerRoot
     }
 
     /* Set-up socket while we still have privileges (if held) */
@@ -104,7 +90,7 @@ func main() {
     signals := make(chan os.Signal)
     signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
-    /* listener.Accept() server loop, in its own go-routine */
+    /* Serve unencrypted traffic */
     go func() {
         for {
             newConn, err := listener.Accept()
@@ -113,11 +99,11 @@ func main() {
                 continue
             }
 
+            /* Run this in it's own goroutine so we can go straight back to accepting */
             go func() {
-                /* Create Client from newConn and register with the manager */
-                client := new(Client)
-                client.Init(&newConn)
-                client.Start()
+                w := new(Worker)
+                w.Init(&newConn)
+                w.Serve()
             }()
         }
     }()
@@ -140,12 +126,11 @@ func chrootServerDir() {
     if err != nil {
         logSystemFatal("Error chroot'ing into server root %s: %s\n", *ServerRoot, err.Error())
     }
-    ServerDir = "/"
 }
 
 func setPrivileges() {
     /* Check root privileges aren't being requested */
-    if *ServerUid == 0 || *ServerGid == 0 {
+    if *ExecAsUid == 0 || *ExecAsGid == 0 {
         logSystemFatal("Gophor does not support directly running as root\n")
     }
 
@@ -153,20 +138,20 @@ func setPrivileges() {
     uid, gid := syscall.Getuid(), syscall.Getgid()
 
     /* Set GID if necessary */
-    if gid != *ServerGid || gid == 0 {
+    if gid != *ExecAsGid || gid == 0 {
         /* C-bind setgid */
-        result := C.setgid(C.uint(*ServerGid))
+        result := C.setgid(C.uint(*ExecAsGid))
         if result != 0 {
-            logSystemFatal("Failed setting GID %d: %d\n", *ServerGid, result)
+            logSystemFatal("Failed setting GID %d: %d\n", *ExecAsGid, result)
         }
     }
 
     /* Set UID if necessary */
-    if uid != *ServerUid || uid == 0 {
+    if uid != *ExecAsUid || uid == 0 {
         /* C-bind setuid */
-        result := C.setuid(C.uint(*ServerUid))
+        result := C.setuid(C.uint(*ExecAsUid))
         if result != 0 {
-            logSystemFatal("Failed setting UID %d: %d\n", *ServerUid, result)
+            logSystemFatal("Failed setting UID %d: %d\n", *ExecAsUid, result)
         }
     }
 }

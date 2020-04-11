@@ -10,26 +10,27 @@ import (
     "strings"
 )
 
-type ClientMsg int
-/* unused for now */
-
-type Client struct {
-    Socket  net.Conn
-}
-
 const (
-    GopherMapFile = "/gophermap"
+    ShowHidden          = false
+    SocketReadBufSize   = 512
+    MaxSocketReadChunks = 4
+    FileReadBufSize     = 512
+    GopherMapFile       = "/gophermap"
 )
 
-func (client *Client) Init(conn *net.Conn) {
-    client.Socket  = *conn
+type Worker struct {
+    Socket net.Conn
 }
 
-func (client *Client) Start() {
+func (worker *Worker) Init(socket *net.Conn) {
+    worker.Socket = *socket
+}
+
+func (worker *Worker) Serve() {
     go func() {
         defer func() {
             /* Close-up shop */
-            client.Socket.Close()
+            worker.Socket.Close()
         }()
 
         var count int
@@ -43,9 +44,9 @@ func (client *Client) Start() {
         iter := 0
         for {
             /* Buffered read from listener */
-            count, err = client.Socket.Read(buf)
+            count, err = worker.Socket.Read(buf)
             if err != nil {
-                logSystemError("Error reading from socket %s: %s\n", client.Socket, err.Error())
+                logSystemError("Error reading from socket %s: %s\n", worker.Socket, err.Error())
                 return
             }
 
@@ -60,7 +61,7 @@ func (client *Client) Start() {
 
             /* Hit max read chunk size, send error + close connection */
             if iter == MaxSocketReadChunks {
-                client.SendError("max socket read size reached\n")
+                worker.SendErrorType("max socket read size reached\n")
                 logSystemError("Reached max socket read size %d. Closing connection...\n", MaxSocketReadChunks*SocketReadBufSize)
                 return
             }
@@ -70,30 +71,29 @@ func (client *Client) Start() {
         }
 
         /* Respond */
-        gophorErr := serverRespond(client, received)
+        gophorErr := serverRespond(worker, received)
         if gophorErr != nil {
             logSystemError("%s\n", gophorErr.Error())
         }
     }()
 }
 
-func (client *Client) SendError(format string, args ...interface{}) {
-    response := make([]byte, 0)
-    response = append(response, byte(TypeError))
-
-    /* Format error message and append to response */
-    message := fmt.Sprintf(format, args...)
-    response = append(response, []byte(message)...)
-    response = append(response, []byte(LastLine)...)
-
-    /* We're sending an error, if this fails then fuck it lol */
-    client.Socket.Write(response)
+func (worker *Worker) SendErrorType(format string, args ...interface{}) {
+    worker.SendRaw(string(TypeError)+"Error: "+format+LastLine, args...)
 }
 
-func serverRespond(client *Client, data []byte) *GophorError {
+func (worker *Worker) SendErrorRaw(format string, args ...interface{}) {
+    worker.SendRaw("Error: "+format, args...)
+}
+
+func (worker *Worker) SendRaw(format string, args ...interface{}) {
+    worker.Socket.Write([]byte(fmt.Sprintf(format, args...)))
+}
+
+func serverRespond(worker *Worker, data []byte) *GophorError {
     /* Clean initial data:
      * Should usually start with a '/' since the selector response we send
-     * starts with a '/' client formatting reasons.
+     * starts with a '/' for worker formatting reasons.
      */
     dataStr := strings.TrimPrefix(strings.TrimSuffix(string(data), CrLf), "/")
 
@@ -102,7 +102,7 @@ func serverRespond(client *Client, data []byte) *GophorError {
 
     /* Ensure alway a relative paths + WITHIN ServerDir, serve them root otherwise */
     if strings.HasPrefix(requestPath, "/") || strings.HasPrefix(requestPath, "..") {
-        logAccessError("%s illegal path requested: %s\n", client.Socket.RemoteAddr(), dataStr)
+        logAccessError("%s illegal path requested: %s\n", worker.Socket.RemoteAddr(), dataStr)
         requestPath = "."
     }
 
@@ -113,7 +113,7 @@ func serverRespond(client *Client, data []byte) *GophorError {
     /* Open requestPath */
     fd, err := os.Open(requestPath)
     if err != nil {
-        client.SendError("%s read fail\n", requestPath) /* Purposely vague errors */ 
+        worker.SendErrorType("read fail\n") /* Purposely vague errors */ 
         return &GophorError{ FileOpenErr, err }
     }
     defer fd.Close()
@@ -131,7 +131,7 @@ func serverRespond(client *Client, data []byte) *GophorError {
     if requestPath != "." {
         stat, err := fd.Stat()
         if err != nil {
-            client.SendError("%s read fail\n", requestPath) /* Purposely vague errors */
+            worker.SendErrorType("read fail\n") /* Purposely vague errors */
             return &GophorError{ FileStatErr, err }
         }
 
@@ -156,20 +156,20 @@ func serverRespond(client *Client, data []byte) *GophorError {
 
             if err == nil {
                 /* Read GopherMapFile contents */
-                logAccess("%s serve gophermap: %s\n", client.Socket.RemoteAddr(), fd2.Name())
+                logAccess("%s serve gophermap: %s\n", worker.Socket.RemoteAddr(), fd2.Name())
 
                 response, gophorErr = readFile(fd2)
                 if gophorErr != nil {
-                    client.SendError("%s read fail\n", fd2.Name())
+                    worker.SendErrorType("gophermap read fail\n")
                     return gophorErr
                 }
             } else {
                 /* Get directory listing */
-                logAccess("%s serve dir: %s\n", client.Socket.RemoteAddr(), fd.Name())
+                logAccess("%s serve dir: %s\n", worker.Socket.RemoteAddr(), fd.Name())
 
                 response, gophorErr = listDir(fd)
                 if gophorErr != nil {
-                    client.SendError("%s dir list fail\n", fd.Name())
+                    worker.SendErrorType("dir list fail\n")
                     return gophorErr
                 }
             }
@@ -177,11 +177,11 @@ func serverRespond(client *Client, data []byte) *GophorError {
         /* Regular file */
         case File:
             /* Read file contents */
-            logAccess("%s serve file: %s\n", client.Socket.RemoteAddr(), fd.Name())
+            logAccess("%s serve file: %s\n", worker.Socket.RemoteAddr(), fd.Name())
 
             response, gophorErr = readFile(fd)
             if gophorErr != nil {
-                client.SendError("%s read fail\n", fd.Name())
+                worker.SendErrorRaw("file read fail\n")
                 return gophorErr
             }
 
@@ -194,7 +194,7 @@ func serverRespond(client *Client, data []byte) *GophorError {
     response = append(response, []byte(LastLine)...)
 
     /* Serve response */
-    count, err := client.Socket.Write(response)
+    count, err := worker.Socket.Write(response)
     if err != nil {
         return &GophorError{ SocketWriteErr, err }
     } else if count != len(response) {
