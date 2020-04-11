@@ -79,36 +79,52 @@ func (worker *Worker) Serve() {
 }
 
 func (worker *Worker) SendErrorType(format string, args ...interface{}) {
-    worker.SendRaw(string(TypeError)+"Error: "+format+LastLine, args...)
+    worker.SendRaw([]byte(fmt.Sprintf(string(TypeError)+"Error: "+format+LastLine, args...)))
 }
 
-func (worker *Worker) SendErrorRaw(format string, args ...interface{}) {
-    worker.SendRaw("Error: "+format, args...)
+func (worker *Worker) SendErrorText(format string, args ...interface{}) {
+    worker.SendRaw([]byte(fmt.Sprintf("Error: "+format, args...)))
 }
 
-func (worker *Worker) SendRaw(format string, args ...interface{}) {
-    worker.Socket.Write([]byte(fmt.Sprintf(format, args...)))
+func (worker *Worker) SendRaw(b []byte) *GophorError {
+    count, err := worker.Socket.Write(b)
+    if err != nil {
+        return &GophorError{ SocketWriteErr, err }
+    } else if count != len(b) {
+        return &GophorError{ SocketWriteCountErr, nil }
+    }
+    return nil
 }
 
 func serverRespond(worker *Worker, data []byte) *GophorError {
-    /* Clean initial data:
-     * Should usually start with a '/' since the selector response we send
-     * starts with a '/' for worker formatting reasons.
-     */
-    dataStr := strings.TrimPrefix(strings.TrimSuffix(string(data), CrLf), "/")
+    /* Only read up to first tab / cr-lf */
+    dataStr := ""
+    dataLen := len(data)
+    for i := 0; i < dataLen; i += 1 {
+        if data[i] == Tab {
+            break
+        } else if data[i] == CrLf[0] {
+            if i == dataLen-1 {
+                /* Chances are we'll NEVER reach here, still need to check */
+                return &GophorError{ InvalidRequestErr, nil }
+            } else if data[i+1] == CrLf[1] {
+                break
+            }
+        }
+        dataStr += string(data[i])
+    }
 
     /* Clean path and get shortest possible from current directory */
     requestPath := path.Clean(dataStr)
 
+    /* Even if asking for root, we trim the initial '/' now its been cleaned up */
+    requestPath = strings.TrimPrefix(requestPath, "/")
+
     /* Ensure alway a relative paths + WITHIN ServerDir, serve them root otherwise */
-    if strings.HasPrefix(requestPath, "/") || strings.HasPrefix(requestPath, "..") {
+    if strings.HasPrefix(requestPath, "..") {
         logAccessError("%s illegal path requested: %s\n", worker.Socket.RemoteAddr(), dataStr)
         requestPath = "."
     }
-
-    var response []byte
-    var gophorErr *GophorError
-    var err error
 
     /* Open requestPath */
     fd, err := os.Open(requestPath)
@@ -145,7 +161,9 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
         }
     }
 
-    /* Handle Dir / File / error otherwise */
+    /* Handle file type */
+    var response []byte
+    var gophorErr *GophorError
     switch fileType {
         /* Directory */
         case Dir:
@@ -156,7 +174,7 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
 
             if err == nil {
                 /* Read GopherMapFile contents */
-                logAccess("%s serve gophermap: %s\n", worker.Socket.RemoteAddr(), fd2.Name())
+                logAccess("%s serve gophermap: /%s\n", worker.Socket.RemoteAddr(), requestPath)
 
                 response, gophorErr = readFile(fd2)
                 if gophorErr != nil {
@@ -165,7 +183,7 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
                 }
             } else {
                 /* Get directory listing */
-                logAccess("%s serve dir: %s\n", worker.Socket.RemoteAddr(), fd.Name())
+                logAccess("%s serve dir: /%s\n", worker.Socket.RemoteAddr(), requestPath)
 
                 response, gophorErr = listDir(fd)
                 if gophorErr != nil {
@@ -177,11 +195,11 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
         /* Regular file */
         case File:
             /* Read file contents */
-            logAccess("%s serve file: %s\n", worker.Socket.RemoteAddr(), fd.Name())
+            logAccess("%s serve file: /%s\n", worker.Socket.RemoteAddr(), requestPath)
 
             response, gophorErr = readFile(fd)
             if gophorErr != nil {
-                worker.SendErrorRaw("file read fail\n")
+                worker.SendErrorText("file read fail\n")
                 return gophorErr
             }
 
@@ -194,14 +212,7 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
     response = append(response, []byte(LastLine)...)
 
     /* Serve response */
-    count, err := worker.Socket.Write(response)
-    if err != nil {
-        return &GophorError{ SocketWriteErr, err }
-    } else if count != len(response) {
-        return &GophorError{ SocketWriteCountErr, nil }
-    }
-
-    return nil
+    return worker.SendRaw(response)
 }
 
 func readFile(fd *os.File) ([]byte, *GophorError) {
@@ -244,19 +255,21 @@ func listDir(fd *os.File) ([]byte, *GophorError) {
     dirContents := make([]byte, 0)
 
     for _, file := range files {
+        /* Unless specificially compiled not to, we skip hidden files */
         if !ShowHidden && file.Name()[0] == '.' {
             continue
         }
 
+        /* Handle file, directory or ignore others */
         switch {
             case file.Mode() & os.ModeDir != 0:
-                /* Directory! */
+                /* Directory -- create directory listing */
                 itemPath := path.Join(fd.Name(), file.Name())
                 entity = newDirEntity(TypeDirectory, file.Name(), "/"+itemPath, *ServerHostname, *ServerPort)
                 dirContents = append(dirContents, entity.Bytes()...)
 
             case file.Mode() & os.ModeType == 0:
-                /* Regular file */
+                /* Regular file -- find item type and creating listing */
                 itemPath := path.Join(fd.Name(), file.Name())
                 itemType := getItemType(itemPath)
                 entity = newDirEntity(itemType, file.Name(), "/"+itemPath, *ServerHostname, *ServerPort)
