@@ -23,7 +23,6 @@ func loggingSetup(systemLogPath, accessLogPath string) {
         if err != nil {
             log.Fatalf("Failed to create system logger: %s\n", err.Error())
         }
-        //defer fd.Close()
         systemWriter = fd        
     } else {
         systemWriter = os.Stderr
@@ -41,7 +40,6 @@ func loggingSetup(systemLogPath, accessLogPath string) {
         if err != nil {
             log.Fatalf("Failed to create access logger: %s\n", err.Error())
         }
-        //defer fd.Close()
         accessWriter = fd
     } else {
         accessWriter = os.Stderr
