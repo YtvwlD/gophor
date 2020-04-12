@@ -17,14 +17,21 @@ const (
     MaxSocketReadChunks = 4
     FileReadBufSize     = 512
     GopherMapFile       = "/gophermap"
+    DefaultShell        = "/bin/sh"
 )
 
 type Worker struct {
-    Socket net.Conn
+    Socket  net.Conn
+    Hidden  map[string]bool
 }
 
-func (worker *Worker) Init(socket *net.Conn) {
+func NewWorker(socket *net.Conn) *Worker {
+    worker := new(Worker)
     worker.Socket = *socket
+    worker.Hidden = map[string]bool{
+        "gophermap": true,
+    }
+    return worker
 }
 
 func (worker *Worker) Serve() {
@@ -72,7 +79,7 @@ func (worker *Worker) Serve() {
         }
 
         /* Respond */
-        gophorErr := serverRespond(worker, received)
+        gophorErr := worker.Respond(received)
         if gophorErr != nil {
             logSystemError("%s\n", gophorErr.Error())
         }
@@ -97,8 +104,29 @@ func (worker *Worker) SendRaw(b []byte) *GophorError {
     return nil
 }
 
-func serverRespond(worker *Worker, data []byte) *GophorError {
-    /* Only read up to first tab / cr-lf */
+func (worker *Worker) Log(format string, args ...interface{}) {
+    logAccess(worker.Socket.RemoteAddr().String()+" "+format, args...)
+}
+
+func (worker *Worker) LogError(format string, args ...interface{}) {
+    logAccessError(worker.Socket.RemoteAddr().String()+" "+format, args...)
+}
+
+func (worker *Worker) SanitizePath(dataStr string) string {
+    /* Clean path and trim '/' prefix if still exists */
+    requestPath := strings.TrimPrefix(path.Clean(dataStr), "/")
+
+    /* Naughty directory traversal! Hackers get ROOT */
+    if strings.HasPrefix(requestPath, "/") {
+        worker.LogError("illegal path requested: %s\n", dataStr)
+        requestPath = "."
+    }
+
+    return requestPath
+}
+
+func (worker *Worker) Respond(data []byte) *GophorError {
+    /* Only read up to first tab or cr-lf */
     dataStr := ""
     dataLen := len(data)
     for i := 0; i < dataLen; i += 1 {
@@ -115,25 +143,16 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
         dataStr += string(data[i])
     }
 
-    /* Clean path and get shortest possible from current directory */
-    requestPath := path.Clean(dataStr)
-
-    /* Even if asking for root, we trim the initial '/' now its been cleaned up */
-    requestPath = strings.TrimPrefix(requestPath, "/")
-
-    /* Ensure alway a relative paths + WITHIN ServerDir, serve them root otherwise */
-    if strings.HasPrefix(requestPath, "..") {
-        logAccessError("%s illegal path requested: %s\n", worker.Socket.RemoteAddr(), dataStr)
-        requestPath = "."
-    }
+    /* Sanitize supplied path */
+    requestPath := worker.SanitizePath(dataStr)
 
     /* Open requestPath */
-    fd, err := os.Open(requestPath)
+    file, err := os.Open(requestPath)
     if err != nil {
-        worker.SendErrorType("read fail\n") /* Purposely vague errors */ 
+        worker.SendErrorType("read fail\n") /* Purposely vague errors */
         return &GophorError{ FileOpenErr, err }
     }
-    defer fd.Close()
+    defer file.Close()
 
     /* Leads to some more concise code below */
     type FileType int
@@ -146,7 +165,7 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
     /* If not empty requestPath, check file type */
     fileType := Dir
     if requestPath != "." {
-        stat, err := fd.Stat()
+        stat, err := file.Stat()
         if err != nil {
             worker.SendErrorType("read fail\n") /* Purposely vague errors */
             return &GophorError{ FileStatErr, err }
@@ -170,23 +189,23 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
         case Dir:
             /* First try to serve gopher map */
             requestPath = path.Join(requestPath, GopherMapFile)
-            fd2, err := os.Open(requestPath)
-            defer fd2.Close()
+            mapFile, err := os.Open(requestPath)
+            defer mapFile.Close()
 
             if err == nil {
                 /* Read GopherMapFile contents */
-                logAccess("%s serve gophermap: /%s\n", worker.Socket.RemoteAddr(), requestPath)
+                worker.Log("serve gophermap: /%s\n", requestPath)
 
-                response, gophorErr = readGophermap(fd2)
+                response, gophorErr = worker.ReadGophermap(file, mapFile)
                 if gophorErr != nil {
                     worker.SendErrorType("gophermap read fail\n")
                     return gophorErr
                 }
             } else {
                 /* Get directory listing */
-                logAccess("%s serve dir: /%s\n", worker.Socket.RemoteAddr(), requestPath)
+                worker.Log("serve dir: /%s\n", requestPath)
 
-                response, gophorErr = listDir(fd)
+                response, gophorErr = worker.ListDir(file)
                 if gophorErr != nil {
                     worker.SendErrorType("dir list fail\n")
                     return gophorErr
@@ -199,9 +218,9 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
         /* Regular file */
         case File:
             /* Read file contents */
-            logAccess("%s serve file: /%s\n", worker.Socket.RemoteAddr(), requestPath)
+            worker.Log("%s serve file: /%s\n", requestPath)
 
-            response, gophorErr = readFile(fd)
+            response, gophorErr = worker.ReadFile(file)
             if gophorErr != nil {
                 worker.SendErrorText("file read fail\n")
                 return gophorErr
@@ -216,11 +235,11 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
     return worker.SendRaw(response)
 }
 
-func readGophermap(fd *os.File) ([]byte, *GophorError) {
+func (worker *Worker) ReadGophermap(dir, mapFile *os.File) ([]byte, *GophorError) {
     fileContents := make([]byte, 0)
 
     /* Create reader and scanner from this */
-    reader := bufio.NewReader(fd)
+    reader := bufio.NewReader(mapFile)
     scanner := bufio.NewScanner(reader)
 
     /* Setup scanner to split on CrLf */
@@ -240,13 +259,89 @@ func readGophermap(fd *os.File) ([]byte, *GophorError) {
     })
 
     /* Scan, format each token and add to fileContents */
+    doEnd := false
     for scanner.Scan() {
         line := scanner.Text()
-        if len(line) == 0 || !strings.Contains(line, string(Tab)) && line != "." {
-            line = string(TypeInfo) + line
+
+        /* Parse the line item type and handle */
+        lineType := parseLineType(line)
+        switch lineType {
+            case TypeInfoNotStated:
+                /* Append TypeInfo to the beginning of line */
+                line = string(TypeInfo)+line+CrLf
+
+            case TypeComment:
+                /* We ignore this line */
+                continue
+
+            case TypeHiddenFile:
+                /* Add to hidden files map */
+                worker.Hidden[line[1:]] = true
+
+            case TypeSubGophermap:
+                /* Try to read subgophermap of file name */
+                line = string(TypeInfo)+"Error: subgophermaps not supported"+CrLf
+
+/*
+                subMapFile, err := os.Open(line[1:])
+                if err != nil {
+                    worker.LogError("error opening subgophermap: /%s --> %s\n", mapFile.Name(), line[1:])
+                    line = fmt.Sprintf(string(TypeInfo)+"Error reading subgophermap: %s"+CrLf, line[1:])
+                } else {
+                    subMapContent, gophorError := worker.ReadFile(subMapFile)
+                    if gophorError != nil {
+                        worker.LogError("error reading subgophermap: /%s --> %s\n", mapFile.Name(), line[1:])
+                        line = fmt.Sprintf(string(TypeInfo)+"Error reading subgophermap: %s"+CrLf, line[1:])
+                    } else {
+                        line = strings.Replace(string(subMapContent), "\n", CrLf, -1)
+                        if !strings.HasSuffix(line, CrLf) {
+                            line += CrLf
+                        }
+                    }
+                }
+*/
+
+            case TypeExec:
+                /* Try executing supplied line */
+                line = string(TypeInfo)+"Error: inline shell commands not support"+CrLf
+
+/*
+                err := exec.Command(line[1:]).Run()
+                if err != nil {
+                    line = fmt.Sprintf(string(TypeInfo)+"Error executing command: %s"+CrLf, line[1:])
+                } else {
+                    line = strings.Replace(string(""), "\n", CrLf, -1)
+                    if !strings.HasSuffix(line, CrLf) {
+                        line += CrLf
+                    }
+                }
+*/
+
+            case TypeEnd:
+                /* Lastline, break out at end of loop */
+                doEnd = true
+                line = LastLine
+
+            case TypeEndBeginList:
+                /* Read current directory listing then break out at end of loop */
+                doEnd = true
+                dirListing, gophorErr := worker.ListDir(dir)
+                if gophorErr != nil {
+                    return nil, gophorErr
+                }
+                line = string(dirListing) + LastLine
+
+            default:
+                line += CrLf
         }
-        line += CrLf
+
+        /* Append generated line to total fileContents */
         fileContents = append(fileContents, []byte(line)...)
+
+        /* Break out of read loop if requested */
+        if doEnd {
+            break
+        }
     }
 
     /* If scanner didn't finish cleanly, return nil and error */
@@ -254,22 +349,27 @@ func readGophermap(fd *os.File) ([]byte, *GophorError) {
         return nil, &GophorError{ FileReadErr, scanner.Err() }
     }
 
+    /* If we never hit doEnd, append a LastLine ourselves */
+    if !doEnd {
+        fileContents = append(fileContents, []byte(LastLine)...)
+    }
+    
     return fileContents, nil
 }
 
-func readFile(fd *os.File) ([]byte, *GophorError) {
+func (worker *Worker) ReadFile(file *os.File) ([]byte, *GophorError) {
     var count int
     fileContents := make([]byte, 0)
     buf := make([]byte, FileReadBufSize)
 
     var err error
-    reader := bufio.NewReader(fd)
+    reader := bufio.NewReader(file)
 
     for {
         count, err = reader.Read(buf)
         if err != nil && err != io.EOF {
             return nil, &GophorError{ FileReadErr, err }
-        }        
+        }
 
         for i := 0; i < count; i += 1 {
             if buf[i] == 0 {
@@ -287,8 +387,8 @@ func readFile(fd *os.File) ([]byte, *GophorError) {
     return fileContents, nil
 }
 
-func listDir(fd *os.File) ([]byte, *GophorError) {
-    files, err := fd.Readdir(-1)
+func (worker *Worker) ListDir(dir *os.File) ([]byte, *GophorError) {
+    files, err := dir.Readdir(-1)
     if err != nil {
         return nil, &GophorError{ DirListErr, err }
     }
@@ -297,8 +397,10 @@ func listDir(fd *os.File) ([]byte, *GophorError) {
     dirContents := make([]byte, 0)
 
     for _, file := range files {
-        /* Unless specificially compiled not to, we skip hidden files */
-        if !ShowHidden && file.Name()[0] == '.' {
+        /* Skip dotfiles + gophermap file + requested hidden */
+        if file.Name()[0] == '.' || file.Name() == "gophermap" {
+            continue
+        } else if _, ok := worker.Hidden[file.Name()]; ok {
             continue
         }
 
@@ -306,13 +408,13 @@ func listDir(fd *os.File) ([]byte, *GophorError) {
         switch {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
-                itemPath := path.Join(fd.Name(), file.Name())
+                itemPath := path.Join(dir.Name(), file.Name())
                 entity = newDirEntity(TypeDirectory, file.Name(), "/"+itemPath, *ServerHostname, *ServerPort)
                 dirContents = append(dirContents, entity.Bytes()...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
-                itemPath := path.Join(fd.Name(), file.Name())
+                itemPath := path.Join(dir.Name(), file.Name())
                 itemType := getItemType(itemPath)
                 entity = newDirEntity(itemType, file.Name(), "/"+itemPath, *ServerHostname, *ServerPort)
                 dirContents = append(dirContents, entity.Bytes()...)

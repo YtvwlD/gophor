@@ -32,8 +32,6 @@ import "C"
  * Gopher server
  */
 var (
-    ServerDir = ""
-
     ServerRoot     = flag.String("root", "/var/gopher", "Change server root directory.")
     ServerHostname = flag.String("hostname", "127.0.0.1", "Change server hostname (FQDN).")
     ServerPort     = flag.Int("port", 70, "Change server port (0 to disable unencrypted traffic).")
@@ -41,7 +39,6 @@ var (
 //    ServerTlsCert  = flag.String("cert", "", "Change server TLS/SSL cert file.")
     ExecAsUid      = flag.Int("uid", 1000, "Change UID to drop executable privileges to.")
     ExecAsGid      = flag.Int("gid", 100, "Change GID to drop executable privileges to.")
-    NoChroot       = flag.Bool("no-chroot", false, "Disable using chroot for server root directory.")
     SystemLog      = flag.String("system-log", "", "Change server system log file (blank outputs to stderr).")
     AccessLog      = flag.String("access-log", "", "Change server access log file (blank outputs to stderr).")
     LoggingType    = flag.Int("log-type", 0, "Change server log file handling -- 0:default 1:disable")
@@ -63,14 +60,8 @@ func main() {
     logSystem("Entered server directory: %s\n", *ServerRoot)
 
     /* Try enter chroot if requested */
-    if !*NoChroot {
-        chrootServerDir()
-        logSystem("Chroot success, new root: %s\n", *ServerRoot)
-        ServerDir = "/"
-    } else {
-        logSystem("Flag 'no-chroot', selected\n")
-        ServerDir = *ServerRoot
-    }
+    chrootServerDir()
+    logSystem("Chroot success, new root: %s\n", *ServerRoot)
 
     /* Set-up socket while we still have privileges (if held) */
     listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *ServerHostname, *ServerPort))
@@ -98,8 +89,7 @@ func main() {
 
             /* Run this in it's own goroutine so we can go straight back to accepting */
             go func() {
-                w := new(Worker)
-                w.Init(&newConn)
+                w := NewWorker(&newConn)
                 w.Serve()
             }()
         }

@@ -46,6 +46,8 @@ const (
 
     TypeRedundant     = ItemType('+') /* Redundant server */
 
+    TypeEnd           = ItemType('.') /* Indicates LastLine if only this + CrLf */
+
     /* Non-standard - as used by https://github.com/prologic/go-gopher
      * (also seen on Wikipedia: https://en.wikipedia.org/wiki/Gopher_%28protocol%29#Item_types)
      */
@@ -54,13 +56,24 @@ const (
     TypeAudio         = ItemType('s') /* Audio file */
     TypePng           = ItemType('p') /* PNG image */
     TypeDoc           = ItemType('d') /* Document [DOC] */
-    
+
     /* Non-standard - as used by Gopernicus https://github.com/gophernicus/gophernicus */
     TypeMime          = ItemType('M') /* [MIME] */
+    TypeVideo         = ItemType(';') /* [VIDEO] */
+    TypeCalendar      = ItemType('c') /* [CALENDAR] */
     TypeTitle         = ItemType('!') /* [TITLE] */
+    TypeComment       = ItemType('#') /* [COMMENT] */
+    TypeHiddenFile    = ItemType('-') /* [HIDDEN] Hides file from directory listing */
+    TypeSubGophermap  = ItemType('=') /* [EXECUTE] read this file in here */
+    TypeEndBeginList  = ItemType('*') /* If only this + CrLf, indicates last line but then followed by directory list */
 
     /* Default type */
     TypeDefault       = TypeFile
+
+    /* Gophor specific types */
+    TypeExec          = ItemType('$') /* Execute command and insert stdout here */
+    TypeInfoNotStated = ItemType('z') /* INTERNAL USE. We use this in a switch case, a line never starts with this */
+    TypeUnknown       = ItemType('?') /* INTERNAL USE. We use this in a switch case, a line never starts with this */
 )
 
 /*
@@ -150,4 +163,48 @@ func getItemType(name string) ItemType {
         return TypeDefault
     }
     return fileType
+}
+
+func parseLineType(line string) ItemType {
+    lineLen := len(line)
+
+    if lineLen == 0 {
+        return TypeInfoNotStated
+    } else if lineLen == 1 {
+        /* The only accepted types for a length 1 line */
+        switch ItemType(line[0]) {
+            case TypeEnd:
+                return TypeEnd
+            case TypeEndBeginList:
+                return TypeEndBeginList
+            case TypeComment:
+                return TypeComment
+            case TypeInfo:
+                return TypeInfo
+            case TypeTitle:
+                return TypeTitle
+            default:
+                return TypeUnknown
+        }
+    } else if !strings.Contains(line, string(Tab)) {
+        /* The only accepted types for a line with no tabs */
+        switch ItemType(line[0]) {
+            case TypeComment:
+                return TypeComment
+            case TypeTitle:
+                return TypeTitle
+            case TypeInfo:
+                return TypeInfo
+            case TypeHiddenFile:
+                return TypeHiddenFile
+            case TypeSubGophermap:
+                return TypeSubGophermap
+            case TypeExec:
+                return TypeExec
+            default:
+                return TypeInfoNotStated
+        }
+    }
+
+    return ItemType(line[0])
 }
