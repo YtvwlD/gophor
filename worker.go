@@ -192,6 +192,9 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
                 }
             }
 
+            /* Have to finish directory listings with LastLine */
+            response = append(response, []byte(LastLine)...)
+
         /* Regular file */
         case File:
             /* Read file contents */
@@ -207,9 +210,6 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
         default:
             return &GophorError{ FileTypeErr, nil }
     }
-
-    /* Always finish response with LastLine bytes */
-    response = append(response, []byte(LastLine)...)
 
     /* Serve response */
     return worker.SendRaw(response)
