@@ -35,7 +35,7 @@ var (
     ServerDir = ""
 
     ServerRoot     = flag.String("root", "/var/gopher", "Change server root directory.")
-    ServerHostname = flag.String("hostname", "localhost", "Change server hostname (FQDN).")
+    ServerHostname = flag.String("hostname", "127.0.0.1", "Change server hostname (FQDN).")
     ServerPort     = flag.Int("port", 70, "Change server port (0 to disable unencrypted traffic).")
 //    ServerTlsPort  = flag.Int("tls-port", 0, "Change server TLS/SSL port (0 to disable).")
 //    ServerTlsCert  = flag.String("cert", "", "Change server TLS/SSL cert file.")
@@ -54,10 +54,6 @@ func main() {
 
     /* Parse run-time arguments */
     flag.Parse()
-    if flag.NFlag() == 0 {
-        flag.Usage()
-        os.Exit(0)
-    }
 
     /* Setup _OUR_ loggers */
     loggingSetup()
