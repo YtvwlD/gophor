@@ -9,6 +9,45 @@ Possibly beta quality soon? More likely alpha right now.
 
 Linux only FOR NOW.
 
+# Supported gophermap item types
+
+```
+0 -- regular file (text)
+1 -- directory (menu)
+2 -- CSO phone-book server... should you be using this in 2020 lmao
+3 -- Error
+4 -- Binhexed macintosh file
+5 -- DOS bin archive
+6 -- Unix uuencoded file
+7 -- Index-search server
+8 -- Text-based telnet session
+9 -- Binary file
+T -- Text-based tn3270 session... in 2020???
+g -- Gif format graphic
+I -- Image file of some kind
+
++ -- Redundant server
+
+. -- Lastline if online this followed by CrLf
+
+i -- Info message
+h -- HTML document
+s -- Audio file
+p -- PNG image
+d -- Document
+
+M -- MIME type file
+; -- Video file
+c -- Calendar file
+! -- Title
+# -- Comment (not displayed)
+- -- Hide file from directory listing
+= -- Include subgophermap (prints file output here)
+* -- Act as-if lastline and print directory listing below
+
+$ -- Execute shell command and print stdout here
+```
+
 # Todos
 
 - TLS support
