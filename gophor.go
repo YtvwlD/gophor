@@ -44,6 +44,7 @@ var (
     NoChroot       = flag.Bool("no-chroot", false, "Disable using chroot for server root directory.")
     SystemLog      = flag.String("system-log", "", "Change server system log file (blank outputs to stderr).")
     AccessLog      = flag.String("access-log", "", "Change server access log file (blank outputs to stderr).")
+    LoggingType    = flag.Int("log-type", 0, "Change server log file handling -- 0:default 1:disable")
 )
 
 func main() {
@@ -59,7 +60,7 @@ func main() {
     }
 
     /* Setup _OUR_ loggers */
-    loggingSetup(*SystemLog, *AccessLog)
+    loggingSetup()
 
     /* Enter server dir */
     enterServerDir()
