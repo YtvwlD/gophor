@@ -8,6 +8,7 @@ import (
     "bufio"
     "path"
     "strings"
+    "bytes"
 )
 
 const (
@@ -176,7 +177,7 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
                 /* Read GopherMapFile contents */
                 logAccess("%s serve gophermap: /%s\n", worker.Socket.RemoteAddr(), requestPath)
 
-                response, gophorErr = readFile(fd2)
+                response, gophorErr = readGophermap(fd2)
                 if gophorErr != nil {
                     worker.SendErrorType("gophermap read fail\n")
                     return gophorErr
@@ -190,10 +191,10 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
                     worker.SendErrorType("dir list fail\n")
                     return gophorErr
                 }
-            }
 
-            /* Have to finish directory listings with LastLine */
-            response = append(response, []byte(LastLine)...)
+                /* Finish directory listing with LastLine */
+                response = append(response, []byte(LastLine)...)
+            }
 
         /* Regular file */
         case File:
@@ -213,6 +214,47 @@ func serverRespond(worker *Worker, data []byte) *GophorError {
 
     /* Serve response */
     return worker.SendRaw(response)
+}
+
+func readGophermap(fd *os.File) ([]byte, *GophorError) {
+    fileContents := make([]byte, 0)
+
+    /* Create reader and scanner from this */
+    reader := bufio.NewReader(fd)
+    scanner := bufio.NewScanner(reader)
+
+    /* Setup scanner to split on CrLf */
+    scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+        if atEOF && len(data) == 0  {
+            /* At EOF, no more data */
+            return 0, nil, nil
+        }
+
+        if i := bytes.Index(data, []byte{ '\r', '\n' }); i >= 0 {
+            /* We have a full new-line terminate line */
+            return i+2, data[0:i], nil
+        }
+
+        /* Request more data */
+        return 0, nil, nil
+    })
+
+    /* Scan, format each token and add to fileContents */
+    for scanner.Scan() {
+        line := scanner.Text()
+        if len(line) == 0 || !strings.Contains(line, string(Tab)) && line != "." {
+            line = string(TypeInfo) + line
+        }
+        line += CrLf
+        fileContents = append(fileContents, []byte(line)...)
+    }
+
+    /* If scanner didn't finish cleanly, return nil and error */
+    if scanner.Err() != nil {
+        return nil, &GophorError{ FileReadErr, scanner.Err() }
+    }
+
+    return fileContents, nil
 }
 
 func readFile(fd *os.File) ([]byte, *GophorError) {

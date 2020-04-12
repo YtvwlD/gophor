@@ -26,6 +26,7 @@ const (
     InvalidRequestErr   ErrorCode = iota
     EmptyItemTypeErr    ErrorCode = iota
     EntityPortParseErr  ErrorCode = iota
+    InvalidGophermapErr ErrorCode = iota
 )
 
 type GophorError struct {
