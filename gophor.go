@@ -141,6 +141,7 @@ func setPrivileges() {
         if result != 0 {
             logSystemFatal("Failed setting GID %d: %d\n", *ExecAsGid, result)
         }
+        logSystem("Dropping to GID: %d\n", *ExecAsGid)
     }
 
     /* Set UID if necessary */
@@ -150,5 +151,6 @@ func setPrivileges() {
         if result != 0 {
             logSystemFatal("Failed setting UID %d: %d\n", *ExecAsUid, result)
         }
+        logSystem("Dropping to UID: %d\n", *ExecAsUid)
     }
 }
