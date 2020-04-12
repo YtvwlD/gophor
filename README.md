@@ -19,7 +19,7 @@ Linux only FOR NOW.
 
 - support proposed protocol extensions (Gopher+ etc)
 
-- toggleable logging
+- ~~toggleable logging~~
 
 - rotating logs
 
@@ -36,6 +36,8 @@ Linux only FOR NOW.
 - connection timeout
 
 - gopher servemux (?)
+
+- ~~treat plain line of text (no tabs) as info line~~
 
 # Standards followed
 
