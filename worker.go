@@ -222,6 +222,9 @@ func (worker *Worker) Respond(data []byte) *GophorError {
             return &GophorError{ FileTypeErr, nil }
     }
 
+    /* Append lastline */
+    response = append(response, []byte(LastLine)...)
+
     /* Serve response */
     return worker.SendRaw(response)
 }
