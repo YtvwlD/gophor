@@ -99,6 +99,16 @@ Unavailable for now due to issues with accessing path within chroot:
 
 - Neaten-up newly added file caching code
 
+# Please note
+
+During the initial writing phase the quality of git commit messages may be
+low and many changes are likely to be bundled together at a time, just
+because the pace of development right now is rather break-neck.
+
+As soon as we reach a stable point in development, or if other people start
+contributing issues or PRs, whichever comes first, this will be changed
+right away.
+
 # Standards followed
 
 Gopher-II (The Next Generation Gopher WWIS):
