@@ -9,6 +9,20 @@ Possibly beta quality soon? More likely alpha right now.
 
 Linux only FOR NOW.
 
+# Features
+
+- ZERO external dependencies
+
+- Item type characters beyond RFC 1436 standard (see below)
+
+- Security focused -- `Until we reach beta/stable, maybe don't trust this...`
+
+- File caching -- Until LRU is implemented, this means cache size is infinite,
+  which for a gopher server of very limited size, this is fine. Probably.
+
+- Separate system and access logging with output to file if requested (or
+  disable both!)
+
 # Supported gophermap item types
 
 ```
@@ -53,11 +67,11 @@ Unavailable for now due to issues with accessing path within chroot:
 
 - TLS support
 
-- connection throttling
+- connection throttling + timeouts
 
 - header + footer text
 
-- support proposed protocol extensions (Gopher+ etc)
+- ~~support proposed protocol extensions (Gopher+ etc)~~
 
 - ~~toggleable logging~~
 
@@ -73,11 +87,15 @@ Unavailable for now due to issues with accessing path within chroot:
 
 - proxy over HTTP support
 
-- connection timeout
-
 - gopher servemux (?)
 
 - ~~treat plain line of text (no tabs) as info line~~
+
+- finish inline shell scripting support
+
+- Implement LRU in file cache
+
+- Allow setting UID+GID via username string
 
 # Standards followed
 
