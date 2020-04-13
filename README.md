@@ -45,7 +45,8 @@ c -- Calendar file
 = -- Include subgophermap (prints file output here)
 * -- Act as-if lastline and print directory listing below
 
-$ -- Execute shell command and print stdout here
+Unavailable for now due to issues with accessing path within chroot:
+~~$ -- Execute shell command and print stdout here~~
 ```
 
 # Todos

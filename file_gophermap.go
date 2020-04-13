@@ -168,17 +168,6 @@ func (f *GophermapFile) readGophermap(path string) ([]GophermapSection, *GophorE
             case TypeExec:
                 /* Try executing supplied line */
                 sections = append(sections, NewGophermapText(string(TypeInfo)+"Error: inline shell commands not yet supported"+CrLf))
-/*
-                err := exec.Command(line[1:]).Run()
-                if err != nil {
-                    line = fmt.Sprintf(string(TypeInfo)+"Error executing command: %s"+CrLf, line[1:])
-                } else {
-                    line = strings.Replace(string(""), "\n", CrLf, -1)
-                    if !strings.HasSuffix(line, CrLf) {
-                        line += CrLf
-                    }
-                }
-*/
 
             case TypeEnd:
                 /* Lastline, break out at end of loop. Interface method Contents()
