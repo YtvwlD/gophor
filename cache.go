@@ -85,7 +85,7 @@ type RegularFileCache struct {
     Mutex    sync.RWMutex
 }
 
-func (fc *RegularFileCache) Init(size int) {
+func (fc *RegularFileCache) Init() {
     fc.CacheMap = make(map[string]*RegularFile)
     fc.Mutex = sync.RWMutex{}
 }
