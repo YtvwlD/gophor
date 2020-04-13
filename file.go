@@ -14,11 +14,11 @@ type RegularFile struct {
     File
 }
 
-func (f RegularFile) Contents() []byte {
+func (f *RegularFile) Contents() []byte {
     return f.contents
 }
 
-func (f RegularFile) LoadContents() *GophorError {
+func (f *RegularFile) LoadContents() *GophorError {
     /* Clear current cache */
     f.contents = nil
 

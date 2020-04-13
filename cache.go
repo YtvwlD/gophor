@@ -2,7 +2,6 @@ package main
 
 import (
     "sync"
-    "fmt"
 )
 
 type File interface {
@@ -33,7 +32,6 @@ func (fc *RegularFileCache) Fetch(path string) ([]byte, *GophorError) {
         }
     }
 
-    fmt.Println("fetching file:", path)
     return file.Contents(), nil
 }
 

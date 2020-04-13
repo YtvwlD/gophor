@@ -1,6 +1,8 @@
 package main
 
 import (
+    "os"
+    "io"
     "bufio"
     "bytes"
     "strings"
@@ -25,7 +27,7 @@ func NewGophermapText(contents string) *GophermapText {
     return s
 }
 
-func (s GophermapText) Render() ([]byte, *GophorError) {
+func (s *GophermapText) Render() ([]byte, *GophorError) {
     return s.contents, nil
 }
 
@@ -43,7 +45,7 @@ func NewGophermapDirListing(path string) *GophermapDirListing {
     return s
 }
 
-func (s GophermapDirListing) Render() ([]byte, *GophorError) {
+func (s *GophermapDirListing) Render() ([]byte, *GophorError) {
     return listDir(s.path, s.Hidden)
 }
 
@@ -55,12 +57,11 @@ type GophermapFile struct {
     File
 }
 
-func (f GophermapFile) Contents() []byte {
+func (f *GophermapFile) Contents() []byte {
     /* We don't just want to read the contents,
      * but also execute any included gophermap
      * execute lines.
      */
-    logSystem("Sections: %s\n", f.lines)
     contents := make([]byte, 0)
     for _, line := range f.lines {
         content, gophorErr := line.Render()
@@ -73,21 +74,13 @@ func (f GophermapFile) Contents() []byte {
     return contents
 }
 
-func (f GophermapFile) LoadContents() *GophorError {
+func (f *GophermapFile) LoadContents() *GophorError {
     /* Clear the current cache */
     f.lines = nil
 
-    logSystem("Loading gophermap...\n")
-
     /* Reload the file */
-    f.lines = make([]GophermapSection, 0)
-    lines, gophorErr := f.readGophermap(f.path)
-    f.lines = append(f.lines, lines...)
-    for _, line := range f.lines {
-        renderStr, _ := line.Render()
-        logSystem("%s\n", renderStr)
-    }
-
+    var gophorErr *GophorError
+    f.lines, gophorErr = f.readGophermap(f.path)
     return gophorErr
 }
 
@@ -163,17 +156,11 @@ func (f *GophermapFile) readGophermap(path string) ([]GophermapSection, *GophorE
                     /* Treat as regular file, but we need to replace Unix line endings
                      * with gophermap line endings
                      */
-                    fileContents, gophorErr := bufferedRead(line[1:])
+                    fileContents, gophorErr := bufferedReadAsGophermap(line[1:])
                     if gophorErr != nil {
                         /* Failed to read file, insert error line */
                         sections = append(sections, NewGophermapText(string(TypeInfo)+"Error reading subgophermap: "+line[1:]+CrLf))
                     } else {
-                        /* Replace line endings with CrLf */
-                        fileContents = bytes.Replace(fileContents, []byte("\n"), []byte(CrLf), -1)
-                        if !strings.HasSuffix(line, CrLf) {
-                            /* Ensure we end on CrLf */
-                            line += CrLf
-                        }
                         sections = append(sections, NewGophermapText(string(fileContents)))
                     }
                 }
@@ -203,7 +190,7 @@ func (f *GophermapFile) readGophermap(path string) ([]GophermapSection, *GophorE
             case TypeEndBeginList:
                 /* Create GophermapDirListing object then break out at end of loop */
                 doEnd = true
-                dirListing = NewGophermapDirListing(line[1:])
+                dirListing = NewGophermapDirListing(strings.TrimSuffix(path, GophermapFileStr))
 
             default:
                 sections = append(sections, NewGophermapText(line+CrLf))
@@ -230,4 +217,39 @@ func (f *GophermapFile) readGophermap(path string) ([]GophermapSection, *GophorE
     }
 
     return sections, nil
+}
+
+func bufferedReadAsGophermap(path string) ([]byte, *GophorError) {
+    /* Open file */
+    fd, err := os.Open(path)
+    if err != nil {
+        logSystemError("failed to open %s: %s\n", path, err.Error())
+        return nil, &GophorError{ FileOpenErr, err }
+    }
+    defer fd.Close()
+
+    /* Create reader and scanner from this */
+    reader := bufio.NewReader(fd)
+    fileContents := make([]byte, 0)
+
+    for {
+        str, err := reader.ReadString('\n')
+        if err != nil {
+            if err == io.EOF {
+                /* Reached EOF */
+                break
+            }
+            
+            return nil, &GophorError{ FileReadErr, nil }
+        }
+
+        str = string(TypeInfo) + strings.Replace(str, "\n", CrLf, -1)
+        fileContents = append(fileContents, []byte(str)...)
+    }
+
+    if !bytes.HasSuffix(fileContents, []byte(CrLf)) {
+        fileContents = append(fileContents, []byte(CrLf)...)
+    }
+
+    return fileContents, nil
 }

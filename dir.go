@@ -38,14 +38,14 @@ func listDir(dirPath string, hidden map[string]bool) ([]byte, *GophorError) {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
                 itemPath := path.Join(fd.Name(), file.Name())
-                entity = newDirEntity(TypeDirectory, file.Name(), "/"+itemPath, *ServerHostname, *ServerPort)
+                entity = newDirEntity(TypeDirectory, file.Name(), itemPath, *ServerHostname, *ServerPort)
                 dirContents = append(dirContents, entity.Bytes()...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
                 itemPath := path.Join(fd.Name(), file.Name())
                 itemType := getItemType(itemPath)
-                entity = newDirEntity(itemType, file.Name(), "/"+itemPath, *ServerHostname, *ServerPort)
+                entity = newDirEntity(itemType, file.Name(), itemPath, *ServerHostname, *ServerPort)
                 dirContents = append(dirContents, entity.Bytes()...)
 
             default:

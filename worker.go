@@ -111,10 +111,8 @@ func (worker *Worker) SanitizePath(dataStr string) string {
     /* Clean path and trim '/' prefix if still exists */
     requestPath := strings.TrimPrefix(path.Clean(dataStr), "/")
 
-    /* Naughty directory traversal! Hackers get ROOT */
-    if strings.HasPrefix(requestPath, "/") {
-        worker.LogError("illegal path requested: %s\n", dataStr)
-        requestPath = "."
+    if !strings.HasPrefix(requestPath, "/") {
+        requestPath = "/" + requestPath
     }
 
     return requestPath
@@ -179,39 +177,45 @@ func (worker *Worker) Respond(data []byte) *GophorError {
     file.Close()
 
     /* Handle file type */
-    var response []byte
-    var gophorErr *GophorError
+    response := make([]byte, 0)
     switch fileType {
         /* Directory */
         case Dir:
             /* First try to serve gopher map */
             requestPath = path.Join(requestPath, "/"+GophermapFileStr)
-            response, gophorErr := GophermapCache.Fetch(requestPath)
+            fileContents, gophorErr := GophermapCache.Fetch(requestPath)
             if gophorErr != nil {
                 /* Get directory listing instead */
-                response, gophorErr = listDir(requestPath, map[string]bool{})
+                fileContents, gophorErr = listDir(requestPath, map[string]bool{})
                 if gophorErr != nil {
                     worker.SendErrorType("dir list failed\n")
                     return gophorErr
                 }
-                worker.Log("serve dir: /%s\n", requestPath)
+
+                /* Add fileContents to response */
+                response = append(response, fileContents...)                
+                worker.Log("serve dir: %s\n", requestPath)
 
                 /* Finish directory listing with LastLine */
                 response = append(response, []byte(LastLine)...)
             } else {
-                /* Successfully loaded gophermap, log */
-                worker.Log("server gophermap: /%s\n", requestPath)
+                /* Successfully loaded gophermap, add fileContents to response */
+                response = append(response, fileContents...)
+                worker.Log("server gophermap: %s\n", requestPath)
             }
 
         /* Regular file */
         case File:
             /* Read file contents */
-            response, gophorErr = RegularCache.Fetch(requestPath)
+            fileContents, gophorErr := RegularCache.Fetch(requestPath)
             if gophorErr != nil {
                 worker.SendErrorText("file read fail\n")
                 return gophorErr
             }
-            worker.Log("%s serve file: /%s\n", requestPath)
+
+            /* Append fileContents to response */
+            response = append(response, fileContents...)
+            worker.Log("serve file: %s\n", requestPath)
 
         /* Unsupport file type */
         default:
