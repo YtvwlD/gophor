@@ -1,0 +1,18 @@
+!Welcome to Gophor!
+  ____             _ 
+ / ___| ___  _ __ | |__   ___  _ __ 
+| |  _ / _ \| '_ \| '_ \ / _ \| '__|
+| |_| | (_) | |_) | | | | (_) | |
+ \____|\___/| .__/|_| |_|\___/|_|
+            |_|
+
+# This is an example of a comment line
+# You can place these in your gophermap and Gophor won't serve them
+
+iAbout the owner:
+=about.txt
+
+# '=' item type lets you insert text files or 'sub' gophermaps
+# Finally you can request that Gophor end and print a directory listing with the '*' item type
+
+*

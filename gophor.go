@@ -42,6 +42,10 @@ var (
     SystemLog      = flag.String("system-log", "", "Change server system log file (blank outputs to stderr).")
     AccessLog      = flag.String("access-log", "", "Change server access log file (blank outputs to stderr).")
     LoggingType    = flag.Int("log-type", 0, "Change server log file handling -- 0:default 1:disable")
+
+    /* FileCaches */
+    GophermapCache *GophermapFileCache
+    RegularCache   *RegularFileCache
 )
 
 func main() {
@@ -77,6 +81,12 @@ func main() {
     /* Handle signals so we can _actually_ shutdowm */
     signals := make(chan os.Signal)
     signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+    /* Create file caches */
+    GophermapCache = new(GophermapFileCache)
+    GophermapCache.Init()
+    RegularCache = new(RegularFileCache)
+    RegularCache.Init()
 
     /* Serve unencrypted traffic */
     go func() {
