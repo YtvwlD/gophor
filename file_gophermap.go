@@ -6,6 +6,8 @@ import (
     "bufio"
     "bytes"
     "strings"
+    "sync"
+    "time"
 )
 
 const GophermapFileStr = "gophermap"
@@ -50,11 +52,21 @@ func (s *GophermapDirListing) Render() ([]byte, *GophorError) {
 }
 
 type GophermapFile struct {
-    path     string
-    lines    []GophermapSection
+    path        string
+    lines       []GophermapSection
+    mutex       *sync.RWMutex
+    isFresh     bool
+    lastRefresh int64
 
     /* Implements */
     File
+}
+
+func NewGophermapFile(path string) *GophermapFile {
+    f := new(GophermapFile)
+    f.path = path
+    f.mutex = new(sync.RWMutex)
+    return f
 }
 
 func (f *GophermapFile) Contents() []byte {
@@ -81,7 +93,40 @@ func (f *GophermapFile) LoadContents() *GophorError {
     /* Reload the file */
     var gophorErr *GophorError
     f.lines, gophorErr = f.readGophermap(f.path)
+
+    /* Update lastRefresh + set fresh */
+    f.lastRefresh = time.Now().UnixNano()
+    f.isFresh = true
+
     return gophorErr
+}
+
+func (f *GophermapFile) IsFresh() bool {
+    return f.isFresh
+}
+
+func (f *GophermapFile) SetUnfresh() {
+    f.isFresh = false
+}
+
+func (f *GophermapFile) LastRefresh() int64 {
+    return f.lastRefresh
+}
+
+func (f *GophermapFile) Lock() {
+    f.mutex.Lock()
+}
+
+func (f *GophermapFile) Unlock() {
+    f.mutex.Unlock()
+}
+
+func (f *GophermapFile) RLock() {
+    f.mutex.RLock()
+}
+
+func (f *GophermapFile) RUnlock() {
+    f.mutex.RUnlock()
 }
 
 func (f *GophermapFile) readGophermap(path string) ([]GophermapSection, *GophorError) {

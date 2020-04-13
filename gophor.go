@@ -88,6 +88,9 @@ func main() {
     RegularCache = new(RegularFileCache)
     RegularCache.Init()
 
+    /* Start file cache monitor */
+    StartFileMonitor(RegularCache, GophermapCache)
+
     /* Serve unencrypted traffic */
     go func() {
         for {
