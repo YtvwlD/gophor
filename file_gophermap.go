@@ -6,6 +6,7 @@ import (
     "bufio"
     "bytes"
     "strings"
+    "os/exec"
 )
 
 const GophermapFileStr = "gophermap"
@@ -47,6 +48,41 @@ func NewGophermapDirListing(path string) *GophermapDirListing {
 
 func (s *GophermapDirListing) Render() ([]byte, *GophorError) {
     return listDir(s.path, s.Hidden)
+}
+
+type GophermapScript struct {
+    command *exec.Cmd
+
+    /* Implements */
+    GophermapSection
+}
+
+func NewGophermapScript(commandStr string) *GophermapScript {
+    s := new(GophermapScript)
+    slice := parseCommandString(commandStr)
+    switch len(slice) {
+        case 0:
+            s.command = exec.Command("echo", "\"Empty command string.\"")
+        case 1:
+            s.command = exec.Command(slice[0])
+        default:
+            s.command = exec.Command(slice[0], slice[1:]...)
+    }
+    return s
+}
+
+func (s *GophermapScript) Render() ([]byte, *GophorError) {
+    out, err := s.command.Output()
+    logSystem("Out: %s. Err: %s\n", out, err)
+    if err != nil {
+        return nil, &GophorError{ ScriptExecuteErr, err }
+    }
+
+    contents, gophorErr := bufferedReadStringAsGophermap(string(out))
+    if gophorErr != nil {
+        return nil, gophorErr
+    }
+    return contents, gophorErr
 }
 
 type GophermapFile struct {
@@ -156,7 +192,7 @@ func (f *GophermapFile) readGophermap(path string) ([]GophermapSection, *GophorE
                     /* Treat as regular file, but we need to replace Unix line endings
                      * with gophermap line endings
                      */
-                    fileContents, gophorErr := bufferedReadAsGophermap(line[1:])
+                    fileContents, gophorErr := bufferedReadFileAsGophermap(line[1:])
                     if gophorErr != nil {
                         /* Failed to read file, insert error line */
                         sections = append(sections, NewGophermapText(string(TypeInfo)+"Error reading subgophermap: "+line[1:]+CrLf))
@@ -167,7 +203,7 @@ func (f *GophermapFile) readGophermap(path string) ([]GophermapSection, *GophorE
 
             case TypeExec:
                 /* Try executing supplied line */
-                sections = append(sections, NewGophermapText(string(TypeInfo)+"Error: inline shell commands not yet supported"+CrLf))
+                sections = append(sections, NewGophermapScript(line[1:]))
 /*
                 err := exec.Command(line[1:]).Run()
                 if err != nil {
@@ -219,7 +255,36 @@ func (f *GophermapFile) readGophermap(path string) ([]GophermapSection, *GophorE
     return sections, nil
 }
 
-func bufferedReadAsGophermap(path string) ([]byte, *GophorError) {
+func bufferedReadStringAsGophermap(input string) ([]byte, *GophorError) {
+    /* Create reader and scanner from this */
+    
+    r := strings.NewReader(input)
+    reader := bufio.NewReader(r)
+    fileContents := make([]byte, 0)
+
+    for {
+        str, err := reader.ReadString('\n')
+        if err != nil {
+            if err == io.EOF {
+                /* Reached EOF */
+                break
+            }
+            
+            return nil, &GophorError{ FileReadErr, nil }
+        }
+
+        str = string(TypeInfo) + strings.Replace(str, "\n", CrLf, -1)
+        fileContents = append(fileContents, []byte(str)...)
+    }
+
+    if !bytes.HasSuffix(fileContents, []byte(CrLf)) {
+        fileContents = append(fileContents, []byte(CrLf)...)
+    }
+
+    return fileContents, nil
+}
+
+func bufferedReadFileAsGophermap(path string) ([]byte, *GophorError) {
     /* Open file */
     fd, err := os.Open(path)
     if err != nil {

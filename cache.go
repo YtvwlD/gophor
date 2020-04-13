@@ -23,7 +23,9 @@ func (fc *RegularFileCache) Fetch(path string) ([]byte, *GophorError) {
     /* Try get file */
     file, ok := fc.GetFile(path)
     
-    if !ok {
+    if ok {
+        /* File in cache, check up-to-date */
+    } else {
         /* File not in cache, we need to load the file */
         var gophorErr *GophorError
         file, gophorErr = fc.Load(path)

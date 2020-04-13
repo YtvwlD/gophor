@@ -27,6 +27,8 @@ const (
     EmptyItemTypeErr    ErrorCode = iota
     EntityPortParseErr  ErrorCode = iota
     InvalidGophermapErr ErrorCode = iota
+
+    ScriptExecuteErr    ErrorCode = iota
 )
 
 type GophorError struct {
@@ -63,6 +65,9 @@ func (e *GophorError) Error() string {
             str = "line string provides no dir entity type"
         case EntityPortParseErr:
             str = "parsing dir entity port"
+            
+        case ScriptExecuteErr:
+            str = "executing in-line shell script"
 
         default:
             str = "Unknown"
