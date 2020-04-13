@@ -60,7 +60,7 @@ c -- Calendar file
 * -- Act as-if lastline and print directory listing below
 
 Unavailable for now due to issues with accessing path within chroot:
-~~$ -- Execute shell command and print stdout here~~
+$ -- Execute shell command and print stdout here
 ```
 
 # Todos
