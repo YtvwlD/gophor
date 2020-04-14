@@ -17,8 +17,7 @@ Linux only FOR NOW.
 
 - Security focused -- `Until we reach beta/stable, maybe don't trust this...`
 
-- File caching -- Until LRU is implemented, this means cache size is infinite,
-  which for a gopher server of very limited size, this is fine. Probably.
+- File caching -- default size is 100 files and 100 gophermaps
 
 - Separate system and access logging with output to file if requested (or
   disable both!)
@@ -93,11 +92,13 @@ $ -- Execute shell command and print stdout here
 
 - Finish inline shell scripting support
 
-- Implement LRU in file cache
+- ~~Implement LRU in file cache~~
 
 - Allow setting UID+GID via username string
 
 - Neaten-up newly added file caching code
+
+- Take file size into account (don't cache if size over __)
 
 # Please note
 
