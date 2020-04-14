@@ -84,9 +84,9 @@ func main() {
 
     /* Create file caches */
     GophermapCache = new(GophermapFileCache)
-    GophermapCache.Init()
+    GophermapCache.Init(5)
     RegularCache = new(RegularFileCache)
-    RegularCache.Init()
+    RegularCache.Init(5)
 
     /* Start file cache monitor */
     StartFileMonitor(RegularCache, GophermapCache)
