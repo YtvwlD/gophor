@@ -15,6 +15,9 @@ var (
     ExecAsUid        = flag.Int("uid", 1000, "Change UID to drop executable privileges to.")
     ExecAsGid        = flag.Int("gid", 100, "Change GID to drop executable privileges to.")
 
+    /* Content settings */
+    PageWidth        = flag.Int("page-width", 80, "Change page width used when formatting output.")
+
     /* Logging settings */
     SystemLog        = flag.String("system-log", "", "Change server system log file (blank outputs to stderr).")
     AccessLog        = flag.String("access-log", "", "Change server access log file (blank outputs to stderr).")

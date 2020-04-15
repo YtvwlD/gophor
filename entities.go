@@ -12,7 +12,7 @@ const (
     LastLine = End+CrLf
     Tab  = byte('\t')
 
-    MaxUserNameLen = 70  /* RFC 1436 standard */
+/*    MaxUserNameLen = 70  RFC 1436 standard */
     MaxSelectorLen = 255 /* RFC 1436 standard */
 
     UserNameErr = "! Err: Max UserName len reached"
@@ -98,8 +98,8 @@ func newDirEntity(t ItemType, name, selector, host string, port int) *DirEntity 
     entity.Type = t
 
     /* Truncate username if we hit MaxUserNameLen */
-    if len(name) > MaxUserNameLen {
-        name = UserNameErr
+    if len(name) > *PageWidth {
+        name = name[:*PageWidth-4] + "..."
     }
     entity.UserName = name
 

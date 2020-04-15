@@ -253,11 +253,13 @@ func bufferedReadAsGophermap(path string) ([]byte, *GophorError) {
     }
     defer fd.Close()
 
-    /* Create reader and scanner from this */
+    /* Create buffered reader from file descriptor */
     reader := bufio.NewReader(fd)
     fileContents := make([]byte, 0)
 
+    /* TODO: work on efficiency */
     for {
+        /* Read up to each new-line */
         str, err := reader.ReadString('\n')
         if err != nil {
             if err == io.EOF {
@@ -268,8 +270,24 @@ func bufferedReadAsGophermap(path string) ([]byte, *GophorError) {
             return nil, &GophorError{ FileReadErr, nil }
         }
 
-        str = string(TypeInfo) + strings.Replace(str, "\n", CrLf, -1)
-        fileContents = append(fileContents, []byte(str)...)
+        /* Replace single newline with as such */
+        if str == "\n" {
+            fileContents = append(fileContents, []byte(string(TypeInfo)+CrLf)...)
+            continue
+        }
+
+        /* Replace the newline character */
+        str = strings.Replace(str, "\n", "", -1)
+
+        /* Iterate through returned str, reflowing to new line
+         * until all lines < PageWidth
+         */
+        for len(str) > 0 {
+            length := minWidth(len(str))
+            line := string(TypeInfo)+str[:length]+CrLf
+            fileContents = append(fileContents, []byte(line)...)
+            str = str[length:]
+        }
     }
 
     if !bytes.HasSuffix(fileContents, []byte(CrLf)) {
@@ -277,4 +295,12 @@ func bufferedReadAsGophermap(path string) ([]byte, *GophorError) {
     }
 
     return fileContents, nil
+}
+
+func minWidth(w int) int {
+    if w <= *PageWidth {
+        return w
+    } else {
+        return *PageWidth
+    }
 }
