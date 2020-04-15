@@ -179,7 +179,6 @@ func (fc *FileCache) Fetch(path string) ([]byte, *GophorError) {
          * contents, unlock all mutex and don't bother caching. 
          */
         if float64(stat.Size()) / BytesInMegaByte > *CacheFileSizeMax {
-            logSystem("File too big for cache, skipping: %s\n", path)
             b := file.Contents()
             fc.CacheMutex.RUnlock()
             return b, nil
