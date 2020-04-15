@@ -133,27 +133,48 @@ func (entity *DirEntity) Bytes() []byte {
 }
 
 var FileExtensions = map[string]ItemType{
-    ".txt":  TypeFile,
-    ".gif":  TypeGif,
-    ".jpg":  TypeImage,
-    ".jpeg": TypeImage,
-    ".png":  TypeImage,
-    ".html": TypeHtml,
-    ".ogg":  TypeAudio,
-    ".mp3":  TypeAudio,
-    ".wav":  TypeAudio,
-    ".mod":  TypeAudio,
-    ".it":   TypeAudio,
-    ".xm":   TypeAudio,
-    ".mid":  TypeAudio,
-    ".vgm":  TypeAudio,
-    ".s":    TypeFile,
-    ".c":    TypeFile,
-    ".py":   TypeFile,
-    ".h":    TypeFile,
-    ".md":   TypeFile,
-    ".go":   TypeFile,
-    ".fs":   TypeFile,
+    ".out":   TypeBin,
+    ".a":     TypeBin,
+    ".o":     TypeBin,
+    ".ko":    TypeBin, /* ... Though tbh, kernel extensions?!!! */
+    ".msi":   TypeBin,
+    ".exe":   TypeBin,
+
+    ".txt":   TypeFile,
+    ".md":    TypeFile,
+    ".json":  TypeFile,
+    ".xml":   TypeFile,
+    ".yaml":  TypeFile,
+    ".ocaml": TypeFile
+    ".s":     TypeFile,
+    ".c":     TypeFile,
+    ".py":    TypeFile,
+    ".h":     TypeFile,
+    ".go":    TypeFile,
+    ".fs":    TypeFile,
+
+    ".doc":   TypeDoc,
+    ".docx":  TypeDoc,
+
+    ".gif":   TypeGif,
+
+    ".jpg":   TypeImage,
+    ".jpeg":  TypeImage,
+    ".png":   TypeImage,
+
+    ".html":  TypeHtml,
+
+    ".ogg":   TypeAudio,
+    ".mp3":   TypeAudio,
+    ".wav":   TypeAudio,
+    ".mod":   TypeAudio,
+    ".it":    TypeAudio,
+    ".xm":    TypeAudio,
+    ".mid":   TypeAudio,
+    ".vgm":   TypeAudio,
+
+    ".mp4":   TypeVideo,
+    ".mkv":   TypeVideo,
 }
 
 func getItemType(name string) ItemType {
