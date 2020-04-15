@@ -145,7 +145,7 @@ var FileExtensions = map[string]ItemType{
     ".json":  TypeFile,
     ".xml":   TypeFile,
     ".yaml":  TypeFile,
-    ".ocaml": TypeFile
+    ".ocaml": TypeFile,
     ".s":     TypeFile,
     ".c":     TypeFile,
     ".py":    TypeFile,
