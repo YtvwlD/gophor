@@ -114,6 +114,8 @@ $ -- Execute shell command and print stdout here
 
 - Add suport for `$hostname` in gophermaps to insert current hostname
 
+- Add support for banned file extensions (i.e. not shown in dir listing)
+
 # Please note
 
 During the initial writing phase the quality of git commit messages may be
