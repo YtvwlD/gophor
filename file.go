@@ -11,18 +11,15 @@ import (
 type RegularFile struct {
     path        string
     contents    []byte
-    mutex       *sync.RWMutex
+    mutex       sync.RWMutex
     isFresh     bool
     lastRefresh int64
-
-    /* Implements */
-    File
 }
 
 func NewRegularFile(path string) *RegularFile {
     f := new(RegularFile)
     f.path = path
-    f.mutex = new(sync.RWMutex)
+    f.mutex = sync.RWMutex{}
     return f
 }
 

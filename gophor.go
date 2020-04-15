@@ -31,23 +31,6 @@ import "C"
 /*
  * Gopher server
  */
-var (
-    ServerRoot     = flag.String("root", "/var/gopher", "Change server root directory.")
-    ServerHostname = flag.String("hostname", "127.0.0.1", "Change server hostname (FQDN).")
-    ServerPort     = flag.Int("port", 70, "Change server port (0 to disable unencrypted traffic).")
-//    ServerTlsPort  = flag.Int("tls-port", 0, "Change server TLS/SSL port (0 to disable).")
-//    ServerTlsCert  = flag.String("cert", "", "Change server TLS/SSL cert file.")
-    ExecAsUid      = flag.Int("uid", 1000, "Change UID to drop executable privileges to.")
-    ExecAsGid      = flag.Int("gid", 100, "Change GID to drop executable privileges to.")
-    SystemLog      = flag.String("system-log", "", "Change server system log file (blank outputs to stderr).")
-    AccessLog      = flag.String("access-log", "", "Change server access log file (blank outputs to stderr).")
-    LoggingType    = flag.Int("log-type", 0, "Change server log file handling -- 0:default 1:disable")
-
-    /* FileCaches */
-    GophermapCache *GophermapFileCache
-    RegularCache   *RegularFileCache
-)
-
 func main() {
     /* Setup global logger */
     log.SetOutput(os.Stderr)
@@ -82,14 +65,8 @@ func main() {
     signals := make(chan os.Signal)
     signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
-    /* Create file caches */
-    GophermapCache = new(GophermapFileCache)
-    GophermapCache.Init(1000)
-    RegularCache = new(RegularFileCache)
-    RegularCache.Init(1000)
-
-    /* Start file cache monitor */
-    StartFileMonitor(RegularCache, GophermapCache)
+    /* Start file cache system */
+    startFileCaching()
 
     /* Serve unencrypted traffic */
     go func() {

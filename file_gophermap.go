@@ -18,9 +18,6 @@ type GophermapSection interface {
 
 type GophermapText struct {
     contents []byte
-
-    /* Implements */
-    GophermapSection
 }
 
 func NewGophermapText(contents string) *GophermapText {
@@ -36,9 +33,6 @@ func (s *GophermapText) Render() ([]byte, *GophorError) {
 type GophermapDirListing struct {
     path   string
     Hidden map[string]bool
-
-    /* Implements */
-    GophermapSection
 }
 
 func NewGophermapDirListing(path string) *GophermapDirListing {
@@ -54,18 +48,15 @@ func (s *GophermapDirListing) Render() ([]byte, *GophorError) {
 type GophermapFile struct {
     path        string
     lines       []GophermapSection
-    mutex       *sync.RWMutex
+    mutex       sync.RWMutex
     isFresh     bool
     lastRefresh int64
-
-    /* Implements */
-    File
 }
 
 func NewGophermapFile(path string) *GophermapFile {
     f := new(GophermapFile)
     f.path = path
-    f.mutex = new(sync.RWMutex)
+    f.mutex = sync.RWMutex{}
     return f
 }
 
