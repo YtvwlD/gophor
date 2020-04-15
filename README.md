@@ -15,12 +15,14 @@ Linux only FOR NOW.
 
 - Item type characters beyond RFC 1436 standard (see below)
 
-- Security focused -- `Until we reach beta/stable, maybe don't trust this...`
+- Security focused -- chroots and into server direrctory and drops
+  privileges. `maybe wait until stable release before use outside of hobby
+  setups.`
 
-- File caching -- default size is 100 files and 100 gophermaps
+- LRU file caching -- with user-controlled file count and max file size.
 
 - Separate system and access logging with output to file if requested (or
-  disable both!)
+  disable both!).
 
 # Supported gophermap item types
 
@@ -70,10 +72,6 @@ $ -- Execute shell command and print stdout here
 
 - Header + footer text
 
-- ~~Support proposed protocol extensions (Gopher+ etc)~~
-
-- ~~Toggleable logging~~
-
 - Rotating logs
 
 - Set default page width (modifies max UserName / Selector fields)
@@ -86,22 +84,16 @@ $ -- Execute shell command and print stdout here
 
 - Proxy over HTTP support
 
-- ~~Treat plain line of text (no tabs) as info line~~
-
 - Finish inline shell scripting support
 
-- ~~Implement LRU in file cache~~
-
 - Allow setting UID+GID via username string
-
-- ~~Neaten-up newly added file caching code~~
-
-- ~~Take file size into account (don't cache if size over __)~~
 
 - Fix file cache only updating if main gophermap changes (but not sub files)
 
 - Add automatic truncating of subgophermap line lengths (e.g. at 70char
   automatically introduce new-line)
+
+- More fine-tuned handling of OS signals
 
 # Please note
 
