@@ -51,7 +51,7 @@ func main() {
     logSystem("Chroot success, new root: %s\n", *ServerRoot)
 
     /* Set-up socket while we still have privileges (if held) */
-    listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *ServerHostname, *ServerPort))
+    listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *ServerBindAddr, *ServerPort))
     if err != nil {
         logSystemFatal("Error opening socket on port %d: %s\n", *ServerPort, err.Error())
     }
