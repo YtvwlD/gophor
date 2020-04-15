@@ -77,7 +77,6 @@ func bufferedRead(path string) ([]byte, *GophorError) {
     /* Open file */
     fd, err := os.Open(path)
     if err != nil {
-        logSystemError("failed to open %s: %s\n", path, err.Error())
         return nil, &GophorError{ FileOpenErr, err }
     }
     defer fd.Close()
@@ -98,7 +97,6 @@ func bufferedRead(path string) ([]byte, *GophorError) {
                 break
             }
 
-            logSystemError("failed to read %s: %s\n", path, err.Error())
             return nil, &GophorError{ FileReadErr, err }
         }
 

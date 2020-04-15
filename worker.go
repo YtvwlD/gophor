@@ -182,8 +182,8 @@ func (worker *Worker) Respond(data []byte) *GophorError {
         /* Directory */
         case Dir:
             /* First try to serve gopher map */
-            requestPath = path.Join(requestPath, "/"+GophermapFileStr)
-            fileContents, gophorErr := GophermapCache.Fetch(requestPath)
+            gophermapPath := path.Join(requestPath, "/"+GophermapFileStr)
+            fileContents, gophorErr := GophermapCache.Fetch(gophermapPath)
             if gophorErr != nil {
                 /* Get directory listing instead */
                 fileContents, gophorErr = listDir(requestPath, map[string]bool{})
@@ -193,7 +193,7 @@ func (worker *Worker) Respond(data []byte) *GophorError {
                 }
 
                 /* Add fileContents to response */
-                response = append(response, fileContents...)                
+                response = append(response, fileContents...)
                 worker.Log("serve dir: %s\n", requestPath)
 
                 /* Finish directory listing with LastLine */
@@ -201,7 +201,7 @@ func (worker *Worker) Respond(data []byte) *GophorError {
             } else {
                 /* Successfully loaded gophermap, add fileContents to response */
                 response = append(response, fileContents...)
-                worker.Log("server gophermap: %s\n", requestPath)
+                worker.Log("serve gophermap: %s\n", gophermapPath)
             }
 
         /* Regular file */
