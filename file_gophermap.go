@@ -10,7 +10,10 @@ import (
     "time"
 )
 
-const GophermapFileStr = "gophermap"
+const (
+    GophermapFileStr = "gophermap"
+    ReplaceStringHostname = "$hostname"
+)
 
 type GophermapSection interface {
     Render() ([]byte, *GophorError)
@@ -220,6 +223,8 @@ func (f *GophermapFile) readGophermap(path string) ([]GophermapSection, *GophorE
                 dirListing = NewGophermapDirListing(strings.TrimSuffix(path, GophermapFileStr))
 
             default:
+                /* Replace pre-set strings */
+                line = strings.Replace(line, ReplaceStringHostname, *ServerHostname, -1)
                 sections = append(sections, NewGophermapText(line+CrLf))
         }
 

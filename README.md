@@ -43,6 +43,10 @@ gophor [args]
 - Insert files within gophermaps, including automating reflowing of lines
   longer than (user definable) page width.
 
+- Automatic replacement of `$hostname` with your server's selected hostname
+  if you put `$hostname` as the host field in your gophermap... Wanna hear
+  me say hostname one more time?
+
 - Item type characters beyond RFC 1436 standard (see below).
 
 - Separate system and access logging with output to file if requested (or to
@@ -113,8 +117,6 @@ $ -- Execute shell command and print stdout here
 - Fix file cache only updating if main gophermap changes (but not sub files)
 
 - More fine-tuned handling of OS signals
-
-- Add suport for `$hostname` in gophermaps to insert current hostname
 
 - Add support for banned file extensions (i.e. not shown in dir listing)
 
