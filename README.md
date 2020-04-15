@@ -112,6 +112,8 @@ $ -- Execute shell command and print stdout here
 
 - More fine-tuned handling of OS signals
 
+- Add suport for `$hostname` in gophermaps to insert current hostname
+
 # Please note
 
 During the initial writing phase the quality of git commit messages may be
