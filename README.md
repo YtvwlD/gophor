@@ -5,7 +5,7 @@ protocol, and more GoLang.
 
 Possibly beta quality soon? More likely alpha right now.
 
-`go build` and you're set to go! (...phor ha)
+`build.sh` and you're set to go! Just put `gophor` somewhere in your path.
 
 Linux only FOR NOW.
 
