@@ -107,6 +107,7 @@ type FileElement struct {
     Element *list.Element
 }
 
+/* TODO: see if there is more efficienct setup */
 type FileCache struct {
     CacheMap   map[string]*FileElement
     CacheMutex sync.RWMutex
@@ -132,6 +133,7 @@ func (fc *FileCache) Fetch(path string) ([]byte, *GophorError) {
     fc.CacheMutex.RLock()
     fileElement, ok := fc.CacheMap[path]
 
+    /* TODO: work on efficiency */
     if ok {
         /* File in cache -- before doing anything get file read lock */
         fileElement.File.RLock()

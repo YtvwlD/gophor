@@ -9,10 +9,9 @@ import (
 )
 
 const (
-    SocketReadBufSize   = 512
+    SocketReadBufSize   = 256 /* Supplied selector shouldn't be longer than this anyways */
     MaxSocketReadChunks = 4
-    FileReadBufSize     = 512
-    DefaultShell        = "/bin/sh"
+    FileReadBufSize     = 1024
 )
 
 type Worker struct {
@@ -175,6 +174,8 @@ func (worker *Worker) Respond(data []byte) *GophorError {
 
     /* Don't need the file handle anymore */
     file.Close()
+
+    /* TODO: work on efficiency */
 
     /* Handle file type */
     response := make([]byte, 0)

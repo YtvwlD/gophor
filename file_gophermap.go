@@ -152,6 +152,8 @@ func (f *GophermapFile) readGophermap(path string) ([]GophermapSection, *GophorE
     hidden := make(map[string]bool)
     var dirListing *GophermapDirListing
 
+    /* TODO: work on efficiency */
+
     /* Scan, format each token and add to parsedContents */
     doEnd := false
     for scanner.Scan() {
