@@ -9,6 +9,23 @@ Possibly beta quality soon? More likely alpha right now.
 
 Linux only FOR NOW.
 
+# Usage
+
+```
+gophor [args]
+       -root           Change server root directory.
+       -port           Change server listening port.
+       -hostname       Change server hostname (FQDN, used to craft dir lists).
+       -bind-addr      Change server bind-address (used in creating socket).
+       -uid            Change UID to drop privileges to.
+       -gid            Change GID to drop privileges to.
+       -system-log     Path to gophor system log file, else use stderr.
+       -access-log     Path to gophor access log file, else use stderr.
+       -cache-check    Change file-cache freshness check frequency (in secs).
+       -cache-size     Change max no. files in file-cache.
+       -cache-file-max Change maximum allowed size of a cached file.
+```
+
 # Features
 
 - ZERO external dependencies
