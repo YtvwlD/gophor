@@ -37,7 +37,7 @@ gophor [args]
 
 - ZERO external dependencies.
 
-- Security focused -- chroots and into server direrctory and drops
+- Security focused -- chroots into server direrctory and drops
   privileges. `maybe wait until stable release before use outside of hobby
   setups.`
 
