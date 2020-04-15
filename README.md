@@ -7,7 +7,11 @@ Possibly beta quality soon? More likely alpha right now.
 
 `build.sh` and you're set to go! Just put `gophor` somewhere in your path.
 
-Linux only FOR NOW.
+Linux only _for now_.
+
+I'm unemployed (not due to lack of effort...) and work on open-source projects
+like this and many others for free. If you would like to help support my work
+that would be hugely appreciated 💕 https://liberapay.com/grufwub/
 
 # Usage
 
