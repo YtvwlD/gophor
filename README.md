@@ -44,8 +44,8 @@ gophor [args]
   longer than (user definable) page width.
 
 - Automatic replacement of `$hostname` with your server's selected hostname
-  if you put `$hostname` as the host field in your gophermap... Wanna hear
-  me say hostname one more time?
+  if you put `$hostname` in your gophermap... Wanna hear me say hostname one
+  more time?
 
 - Item type characters beyond RFC 1436 standard (see below).
 
