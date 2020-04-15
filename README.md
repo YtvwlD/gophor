@@ -29,18 +29,24 @@ gophor [args]
 
 # Features
 
-- ZERO external dependencies
+- Built with concurrency and efficiency in mind.
 
-- Item type characters beyond RFC 1436 standard (see below)
+- ZERO external dependencies.
 
 - Security focused -- chroots and into server direrctory and drops
   privileges. `maybe wait until stable release before use outside of hobby
   setups.`
 
-- LRU file caching -- with user-controlled file count and max file size.
+- LRU file caching -- with user-controlled cache size, max cached file size
+  and cache refresh frequency.
 
-- Separate system and access logging with output to file if requested (or
-  disable both!).
+- Insert files within gophermaps, including automating reflowing of lines
+  longer than (user definable) page width.
+
+- Item type characters beyond RFC 1436 standard (see below).
+
+- Separate system and access logging with output to file if requested (or to
+  disable both).
 
 # Supported gophermap item types
 
