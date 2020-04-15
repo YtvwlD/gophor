@@ -60,7 +60,7 @@ I -- Image file of some kind
 
 + -- Redundant server
 
-. -- Lastline if online this followed by CrLf
+. -- Lastline if this followed by CrLf
 
 i -- Info message
 h -- HTML document
