@@ -100,6 +100,13 @@ $ -- Execute shell command and print stdout here
 
 - Take file size into account (don't cache if size over __)
 
+- Fix file cache only updating if main gophermap changes (but not sub files)
+
+- Add automatic truncating of subgophermap line lengths (e.g. at 70char
+  automatically introduce new-line)
+
+- Adding LastLine to end of text files??
+
 # Please note
 
 During the initial writing phase the quality of git commit messages may be
