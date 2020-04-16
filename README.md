@@ -58,13 +58,13 @@ gophor [args]
   disable both).
 
 - Support for a garbage-collector ballast of user-defined size, which works
-  to reduce the frequency of garbage collection (see here).*
+  to reduce the frequency of garbage collection ([see (here](https://blog.twitch.tv/en/2019/04/10/go-memory-ballast-how-i-learnt-to-stop-worrying-and-love-the-heap-26c2462549a2/)).
 
-* Realistically, you're unlikely to run into issues anywhere even close to
-  the scale mentioned in the Twitch blog post. But in a situation where
+  Realistically, you're unlikely to run into issues anywhere even close to
+  the scale mentioned in the linked blog post. But in a situation where
   you're running this on a low-powered device and hitting CPU constraints
   when many users are accessing resources, this _could_ help, maybe.
-  Ultimately, I just read the blog post and really liked the idea so I
+  Ultimately, I just read the blog post and liked the idea so I
   implemented it.
 
 # Supported gophermap item types
