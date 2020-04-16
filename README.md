@@ -124,6 +124,10 @@ $ -- Execute shell command and print stdout here
 
 - Add support for banned file extensions (i.e. not shown in dir listing)
 
+- Add path back ".." to directory listings
+
+- Add hostname + port to info listings
+
 # Please note
 
 During the initial writing phase the quality of git commit messages may be
