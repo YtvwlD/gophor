@@ -42,13 +42,6 @@ func main() {
     /* Setup _OUR_ loggers */
     loggingSetup()
 
-    /* Setup GC ballast if requested */
-    if *GcBallastSize > 0 {
-        ballast := make([]byte, *GcBallastSize * BytesInMegaByte)
-        ballast[0] = 0
-        logSystem("Using GC ballast size: %dMB\n", *GcBallastSize)
-    }
-
     /* Enter server dir */
     enterServerDir()
     logSystem("Entered server directory: %s\n", *ServerRoot)

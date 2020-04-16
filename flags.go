@@ -27,7 +27,4 @@ var (
     CacheCheckFreq   = flag.Float64("cache-check", 30, "Change file cache freshness check frequency (in seconds).")
     CacheSize        = flag.Int("cache-size", 1000, "Change individual file cache size, measured in file count.")
     CacheFileSizeMax = flag.Float64("cache-file-max", 5, "Change maximum file size to be cached (in megabytes).")
-
-    /* GoLang runtime related settings */
-    GcBallastSize    = flag.Int("gc-ballast", 0, "Garbage-collector ballast size (in MB).")
 )
