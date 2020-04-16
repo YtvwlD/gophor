@@ -46,7 +46,7 @@ func main() {
     if *GcBallastSize > 0 {
         ballast := make([]byte, *GcBallastSize * BytesInMegaByte)
         ballast[0] = 0
-        logSystem("Using GC ballast size: %dMB\n", *GcBallastSize)
+        logSystem("Using GC ballast size: ~%dMB\n", *GcBallastSize)
     }
 
     /* Enter server dir */
