@@ -11,11 +11,11 @@ import (
 )
 
 /*
- * Here begins hacky fun-time. GoLang's built-in syscall.{Setuid,Setgid}() methods don't
- * work as expected (all I ever run into is 'operation not supported'). Which from reading
- * seems to be a result of Linux not always performing setuid/setgid constistent with the
- * Unix expected result. Then mix that with GoLang's goroutines acting like threads but
- * not quite the same... I can see why they're not fully supported.
+ * GoLang's built-in syscall.{Setuid,Setgid}() methods don't work as expected (all I ever
+ * run into is 'operation not supported'). Which from reading seems to be a result of Linux
+ * not always performing setuid/setgid constistent with the Unix expected result. Then mix
+ * that with GoLang's goroutines acting like threads but not quite the same... I can see
+ * why they're not fully supported.
  *
  * Instead we're going to take C-bindings and call them directly ourselves, BEFORE spawning
  * any goroutines to prevent fuckery.
