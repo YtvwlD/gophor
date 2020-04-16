@@ -29,7 +29,6 @@ gophor [args]
        -cache-size     Change max no. files in file-cache.
        -cache-file-max Change maximum allowed size of a cached file.
        -page-width     Change page width used when formatting output.
-       -gc-ballast     Change garbage-collector ballast size, default off.
 ```
 
 # Features
