@@ -29,6 +29,7 @@ gophor [args]
        -cache-size     Change max no. files in file-cache.
        -cache-file-max Change maximum allowed size of a cached file.
        -page-width     Change page width used when formatting output.
+       -gc-ballast     Change garbage-collector ballast size, default off.
 ```
 
 # Features
@@ -55,6 +56,16 @@ gophor [args]
 
 - Separate system and access logging with output to file if requested (or to
   disable both).
+
+- Support for a garbage-collector ballast of user-defined size, which works
+  to reduce the frequency of garbage collection (see here).*
+
+* Realistically, you're unlikely to run into issues anywhere even close to
+  the scale mentioned in the Twitch blog post. But in a situation where
+  you're running this on a low-powered device and hitting CPU constraints
+  when many users are accessing resources, this _could_ help, maybe.
+  Ultimately, I just read the blog post and really liked the idea so I
+  implemented it.
 
 # Supported gophermap item types
 

@@ -42,6 +42,13 @@ func main() {
     /* Setup _OUR_ loggers */
     loggingSetup()
 
+    /* Setup GC ballast if requested */
+    var ballast []byte
+    if *GcBallastSize > 0 {
+        ballast = make([]byte, *GcBallastSize * BytesInMegaByte)
+        logSystem("Using GC ballast size: %dMB\n", *GcBallastSize)
+    }
+
     /* Enter server dir */
     enterServerDir()
     logSystem("Entered server directory: %s\n", *ServerRoot)
@@ -89,6 +96,11 @@ func main() {
     sig := <-signals
     logSystem("Signal received: %v. Shutting down...\n", sig)
     os.Exit(0)
+
+    /* Here we do something with the ballast AFTER os.Exit so it's never actually used
+     * (this stops the compiler complaining).
+     */
+    ballast = append(ballast, 0)
 }
 
 func enterServerDir() {
