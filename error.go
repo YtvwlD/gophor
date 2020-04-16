@@ -63,6 +63,8 @@ func (e *GophorError) Error() string {
             str = "line string provides no dir entity type"
         case EntityPortParseErr:
             str = "parsing dir entity port"
+        case InvalidGophermapErr:
+            str = "invalid gophermap"
 
         default:
             str = "Unknown"
