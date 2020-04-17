@@ -167,7 +167,7 @@ func (f *GophermapFile) readGophermap(path string) ([]GophermapSection, *GophorE
         switch lineType {
             case TypeInfoNotStated:
                 /* Append TypeInfo to the beginning of line */
-                sections = append(sections, NewGophermapText(string(TypeInfo)+line+CrLf))
+                sections = append(sections, NewGophermapText(string(createInfoLine(line))))
 
             case TypeComment:
                 /* We ignore this line */
@@ -279,7 +279,7 @@ func bufferedReadAsGophermap(path string) ([]byte, *GophorError) {
 
         /* Replace single newline with as such */
         if str == "\n" {
-            fileContents = append(fileContents, []byte(string(TypeInfo)+CrLf)...)
+            fileContents = append(fileContents, createInfoLine("")...)
             continue
         }
 
@@ -291,8 +291,7 @@ func bufferedReadAsGophermap(path string) ([]byte, *GophorError) {
          */
         for len(str) > 0 {
             length := minWidth(len(str))
-            line := string(TypeInfo)+str[:length]+CrLf
-            fileContents = append(fileContents, []byte(line)...)
+            fileContents = append(fileContents, createInfoLine(str[:length])...)
             str = str[length:]
         }
     }

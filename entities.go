@@ -17,6 +17,9 @@ const (
 
     UserNameErr = "! Err: Max UserName len reached"
     SelectorErr = "err_max_selector_len_reached"
+
+    NullHost = "null.host"
+    NullPort = "1"
 )
 
 type ItemType byte
@@ -228,4 +231,8 @@ func parseLineType(line string) ItemType {
     }
 
     return ItemType(line[0])
+}
+
+func createInfoLine(content string) []byte {
+    return []byte(string(TypeInfo)+content+string(Tab)+NullHost+string(Tab)+NullPort+CrLf)
 }
