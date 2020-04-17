@@ -124,11 +124,11 @@ func (worker *Worker) Respond(data []byte) *GophorError {
     for i := 0; i < dataLen; i += 1 {
         if data[i] == '\t' {
             break
-        } else if data[i] == CrLf[0] {
+        } else if data[i] == DOSLineEnd[0] {
             if i == dataLen-1 {
                 /* Chances are we'll NEVER reach here, still need to check */
                 return &GophorError{ InvalidRequestErr, nil }
-            } else if data[i+1] == CrLf[1] {
+            } else if data[i+1] == DOSLineEnd[1] {
                 break
             }
         }

@@ -101,20 +101,6 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
 
     /* Perform buffered scan with our supplied splitter and iterators */
     gophorErr := bufferedScan(path,
-        func(data []byte, atEOF bool) (advance int, token []byte, err error) {
-            if atEOF && len(data) == 0  {
-                /* At EOF, no more data */
-                return 0, nil, nil
-            }
-
-            if i := bytes.Index(data, []byte("\r\n")); i >= 0 {
-                /* We have a full new-line terminate line */
-                return i+2, data[:i], nil
-            }
-
-            /* Request more data */
-            return 0, nil, nil
-        },
         func(scanner *bufio.Scanner) bool {
             line := scanner.Text()
 
@@ -156,6 +142,7 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
                         fileContents, gophorErr := readIntoGophermap(line[1:])
                         if gophorErr != nil {
                             /* Failed to read file, insert error line */
+                            logSystem("Error: %s\n", gophorErr)
                             sections = append(sections, NewGophermapText(buildInfoLine("Error reading subgophermap: "+line[1:])))
                         } else {
                             sections = append(sections, NewGophermapText(fileContents))
@@ -181,7 +168,7 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
                 default:
                     /* Replace pre-set strings */
                     line = strings.Replace(line, ReplaceStrHostname, *ServerHostname, -1)
-                    sections = append(sections, NewGophermapText([]byte(line+CrLf)))
+                    sections = append(sections, NewGophermapText([]byte(line+DOSLineEnd)))
             }
             
             return true
@@ -211,24 +198,10 @@ func readIntoGophermap(path string) ([]byte, *GophorError) {
 
     /* Perform buffered scan with our supplied splitter and iterators */
     gophorErr := bufferedScan(path,
-        func(data []byte, atEOF bool) (advance int, token []byte, err error) {
-            if atEOF && len(data) == 0 {
-                /* At EOF, no more data */
-                return 0, nil, nil
-            }
-
-            if i := bytes.Index(data, []byte("\n")); i >= 0 {
-                /* We have a full new-line terminate line */
-                return i+1, data[:i+1], nil
-            }
-
-            /* Request more data */
-            return 0, nil, nil
-        },
         func(scanner *bufio.Scanner) bool {
             line := scanner.Text()
 
-            if line == "\n" {
+            if line == "" {
                 fileContents = append(fileContents, buildInfoLine("")...)
                 return true
             }
@@ -255,8 +228,8 @@ func readIntoGophermap(path string) ([]byte, *GophorError) {
     }
 
     /* Check final output ends on a newline */
-    if !bytes.HasSuffix(fileContents, []byte(CrLf)) {
-        fileContents = append(fileContents, []byte(CrLf)...)
+    if !bytes.HasSuffix(fileContents, []byte(DOSLineEnd)) {
+        fileContents = append(fileContents, []byte(DOSLineEnd)...)
     }
 
     return fileContents, nil
