@@ -7,30 +7,17 @@ import (
     "container/list"
 )
 
-const (
-    BytesInMegaByte = 1048576.0
-)
-
 var (
     FileMonitorSleepTime = time.Duration(*CacheCheckFreq) * time.Second
 
     /* Global file caches */
-    GophermapCache *FileCache
-    RegularCache   *FileCache
+    GlobalFileCache *FileCache
 )
 
 func startFileCaching() {
     /* Create gophermap file cache */
-    GophermapCache = new(FileCache)
-    GophermapCache.Init(*CacheSize, func(path string) File {
-        return NewGophermapFile(path)
-    })
-
-    /* Create regular file cache */
-    RegularCache = new(FileCache)
-    RegularCache.Init(*CacheSize, func(path string) File {
-        return NewRegularFile(path)
-    })
+    GlobalFileCache = new(FileCache)
+    GlobalFileCache.Init(*CacheSize)
 
     /* Start file monitor in separate goroutine */
     go startFileMonitor()
@@ -42,11 +29,8 @@ func startFileMonitor() {
             /* Sleep so we don't take up all the precious CPU time :) */
             time.Sleep(FileMonitorSleepTime)
 
-            /* Check regular cache freshness */
-            checkCacheFreshness(RegularCache)
-
-            /* Check gophermap cache freshness */
-            checkCacheFreshness(GophermapCache)
+            /* Check global file cache freshness */
+            checkCacheFreshness(GlobalFileCache)
         }
 
         /* We shouldn't have reached here */
@@ -85,25 +69,8 @@ func checkCacheFreshness(cache *FileCache) {
     cache.CacheMutex.RUnlock()
 }
 
-type File interface {
-    /* File contents */
-    Contents()     []byte
-    LoadContents() *GophorError
-
-    /* Cache state */
-    IsFresh()      bool
-    SetUnfresh()
-    LastRefresh()  int64
-
-    /* Mutex */
-    Lock()
-    Unlock()
-    RLock()
-    RUnlock()
-}
-
 type FileElement struct {
-    File    File
+    File    *File
     Element *list.Element
 }
 
@@ -114,21 +81,34 @@ type FileCache struct {
     FileList   *list.List
     ListMutex  sync.Mutex
     Size       int
-
-    NewFile    func(path string) File
 }
 
-func (fc *FileCache) Init(size int, newFileFunc func(path string) File) {
+func (fc *FileCache) Init(size int) {
     fc.CacheMap = make(map[string]*FileElement)
     fc.CacheMutex = sync.RWMutex{}
     fc.FileList = list.New()
     fc.FileList.Init()
     fc.ListMutex = sync.Mutex{}
     fc.Size = size
-    fc.NewFile = newFileFunc
 }
 
-func (fc *FileCache) Fetch(path string) ([]byte, *GophorError) {
+func (fc *FileCache) FetchRegular(path string) ([]byte, *GophorError) {
+    return fc.Fetch(path, func(path string) FileContents {
+        contents := new(RegularFileContents)
+        contents.path = path
+        return contents
+    })
+}
+
+func (fc *FileCache) FetchGophermap(path string) ([]byte, *GophorError) {
+    return fc.Fetch(path, func(path string) FileContents {
+        contents := new(GophermapContents)
+        contents.path = path
+        return contents
+    })
+}
+
+func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContents) ([]byte, *GophorError) {
     /* Get cache map read lock then check if file in cache map */
     fc.CacheMutex.RLock()
     fileElement, ok := fc.CacheMap[path]
@@ -161,19 +141,24 @@ func (fc *FileCache) Fetch(path string) ([]byte, *GophorError) {
         /* Before we do ANYTHING, we need to check file-size on disk */
         stat, err := os.Stat(path)
         if err != nil {
+            /* Error stat'ing file, unlock read mutex then return error */
+            fc.CacheMutex.RUnlock()
             return nil, &GophorError{ FileStatErr, err }
         }
 
-        /* Use supplied new file function */
-        file := fc.NewFile(path)
+        /* Create new file contents object using supplied function */
+        contents := newFileContents(path)
+
+        /* Create new file wrapper around contents */
+        file := NewFile(contents)
 
         /* NOTE: file isn't in cache yet so no need to lock file write mutex
          * before loading from disk
          */
         gophorErr := file.LoadContents()
         if gophorErr != nil {
-            /* Error loading contents, unlock all mutex then return error */
-            fc.CacheMutex.Unlock()
+            /* Error loading contents, unlock read mutex then return error */
+            fc.CacheMutex.RUnlock()
             return nil, gophorErr
         }
 
