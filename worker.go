@@ -122,7 +122,7 @@ func (worker *Worker) Respond(data []byte) *GophorError {
     dataStr := ""
     dataLen := len(data)
     for i := 0; i < dataLen; i += 1 {
-        if data[i] == Tab {
+        if data[i] == '\t' {
             break
         } else if data[i] == CrLf[0] {
             if i == dataLen-1 {
@@ -184,7 +184,7 @@ func (worker *Worker) Respond(data []byte) *GophorError {
         case Dir:
             /* First try to serve gopher map */
             gophermapPath := path.Join(requestPath, "/"+GophermapFileStr)
-            fileContents, gophorErr := GophermapCache.Fetch(gophermapPath)
+            fileContents, gophorErr := GlobalFileCache.FetchGophermap(gophermapPath)
             if gophorErr != nil {
                 /* Get directory listing instead */
                 fileContents, gophorErr = listDir(requestPath, map[string]bool{})
@@ -208,7 +208,7 @@ func (worker *Worker) Respond(data []byte) *GophorError {
         /* Regular file */
         case File:
             /* Read file contents */
-            fileContents, gophorErr := RegularCache.Fetch(requestPath)
+            fileContents, gophorErr := GlobalFileCache.FetchRegular(requestPath)
             if gophorErr != nil {
                 worker.SendErrorText("file read fail\n")
                 return gophorErr
