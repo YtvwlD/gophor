@@ -2,10 +2,12 @@ package main
 
 const (
     /* Parsing */
-    CrLf = "\r\n"
+    DOSLineEnd = "\r\n"
+    UnixLineEnd = "\n"
+
     End = "."
-    LastLine = End+CrLf
     Tab = "\t"
+    LastLine = End+DOSLineEnd
 
     MaxUserNameLen = 70  /* RFC 1436 standard */
     MaxSelectorLen = 255 /* RFC 1436 standard */

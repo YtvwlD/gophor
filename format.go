@@ -78,9 +78,9 @@ func buildLine(t ItemType, name, selector, host string, port int) []byte {
 
     /* Add port, set to nullport if 0 */
     if port == 0 {
-        ret += NullPort+CrLf
+        ret += NullPort+DOSLineEnd
     } else {
-        ret += strconv.Itoa(port)+CrLf
+        ret += strconv.Itoa(port)+DOSLineEnd
     }
 
     return []byte(ret)

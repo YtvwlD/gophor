@@ -131,9 +131,7 @@ func bufferedRead(path string) ([]byte, *GophorError) {
     return contents, nil
 }
 
-func bufferedScan(path string,
-                     scanSplitter func([]byte, bool) (int, []byte, error),
-                     scanIterator func(*bufio.Scanner) bool) *GophorError {
+func bufferedScan(path string, scanIterator func(*bufio.Scanner) bool) *GophorError {
     /* First, read raw file contents */
     contents, gophorErr := bufferedRead(path)
     if gophorErr != nil {
@@ -144,8 +142,12 @@ func bufferedScan(path string,
     reader := bytes.NewReader(contents)
     scanner := bufio.NewScanner(reader)
 
-    /* Setup scanner splitter */
-    scanner.Split(scanSplitter)
+    /* If contains DOS line-endings, use them! Else, Unix line-endings */
+    if bytes.Contains(contents, []byte(DOSLineEnd)) {
+        scanner.Split(dosLineEndSplitter)
+    } else {
+        scanner.Split(unixLineEndSplitter)
+    }
 
     /* Scan through file contents using supplied iterator */
     for scanner.Scan() && scanIterator(scanner) {}
@@ -156,6 +158,36 @@ func bufferedScan(path string,
     }
 
     return nil
+}
+
+func dosLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, err error) {
+    if atEOF && len(data) == 0  {
+        /* At EOF, no more data */
+        return 0, nil, nil
+    }
+
+    if i := bytes.Index(data, []byte("\r\n")); i >= 0 {
+        /* We have a full new-line terminate line */
+        return i+2, data[:i], nil
+    }
+
+    /* Request more data */
+    return 0, nil, nil
+}
+
+func unixLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, err error) {
+    if atEOF && len(data) == 0  {
+        /* At EOF, no more data */
+        return 0, nil, nil
+    }
+
+    if i := bytes.Index(data, []byte("\n")); i >= 0 {
+        /* We have a full new-line terminate line */
+        return i+1, data[:i], nil
+    }
+
+    /* Request more data */
+    return 0, nil, nil
 }
 
 func listDir(dirPath string, hidden map[string]bool) ([]byte, *GophorError) {
