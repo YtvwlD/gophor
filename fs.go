@@ -173,14 +173,17 @@ func listDir(dirPath string, hidden map[string]bool) ([]byte, *GophorError) {
         return nil, &GophorError{ DirListErr, err }
     }
 
+    /* Walk through directory */
     dirContents := make([]byte, 0)
 
-    /* Walk through directory */
+    /* First add a 'back' entry. GoLang Readdir() seems to miss this */
+    line := buildLine(TypeDirectory, "..", path.Join(fd.Name(), ".."), *ServerHostname, *ServerPort)
+    dirContents = append(dirContents, line...)
+
+    /* Iterate through files :) */
     for _, file := range files {
         /* Skip dotfiles + gophermap file + requested hidden */
         if file.Name()[0] == '.' || strings.HasSuffix(file.Name(), GophermapFileStr) {
-            continue
-        } else if _, ok := hidden[file.Name()]; ok {
             continue
         }
 
@@ -189,14 +192,14 @@ func listDir(dirPath string, hidden map[string]bool) ([]byte, *GophorError) {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
                 itemPath := path.Join(fd.Name(), file.Name())
-                line := buildLine(TypeDirectory, file.Name(), itemPath, *ServerHostname, *ServerPort)
+                line = buildLine(TypeDirectory, file.Name(), itemPath, *ServerHostname, *ServerPort)
                 dirContents = append(dirContents, line...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
                 itemPath := path.Join(fd.Name(), file.Name())
                 itemType := getItemType(itemPath)
-                line := buildLine(itemType, file.Name(), itemPath, *ServerHostname, *ServerPort)
+                line = buildLine(itemType, file.Name(), itemPath, *ServerHostname, *ServerPort)
                 dirContents = append(dirContents, line...)
 
             default:

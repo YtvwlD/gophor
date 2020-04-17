@@ -17,7 +17,7 @@ var (
 func startFileCaching() {
     /* Create gophermap file cache */
     GlobalFileCache = new(FileCache)
-    GlobalFileCache.Init(*CacheSize, )
+    GlobalFileCache.Init(*CacheSize)
 
     /* Start file monitor in separate goroutine */
     go startFileMonitor()
@@ -141,6 +141,8 @@ func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContent
         /* Before we do ANYTHING, we need to check file-size on disk */
         stat, err := os.Stat(path)
         if err != nil {
+            /* Error stat'ing file, unlock read mutex then return error */
+            fc.CacheMutex.RUnlock()
             return nil, &GophorError{ FileStatErr, err }
         }
 
@@ -155,8 +157,8 @@ func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContent
          */
         gophorErr := file.LoadContents()
         if gophorErr != nil {
-            /* Error loading contents, unlock all mutex then return error */
-            fc.CacheMutex.Unlock()
+            /* Error loading contents, unlock read mutex then return error */
+            fc.CacheMutex.RUnlock()
             return nil, gophorErr
         }
 

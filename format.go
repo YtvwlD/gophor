@@ -72,6 +72,8 @@ func buildLine(t ItemType, name, selector, host string, port int) []byte {
     /* Add host, set to nullhost if empty */
     if host == "" {
         ret += NullHost+"\t"
+    } else {
+        ret += host+"\t"
     }
 
     /* Add port, set to nullport if 0 */
