@@ -124,8 +124,6 @@ $ -- Execute shell command and print stdout here
 
 - Add support for banned file extensions (i.e. not shown in dir listing)
 
-- Convert '!' title to i_____\tTITLE\tnull.host\t1
-
 # Please note
 
 During the initial writing phase the quality of git commit messages may be

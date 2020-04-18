@@ -94,9 +94,16 @@ func (s *GophermapDirListing) Render() ([]byte, *GophorError) {
 }
 
 func readGophermap(path string) ([]GophermapSection, *GophorError) {
-    /* Create return slice. Also hidden files map in case dir listing requested */
+    /* Create return slice */
     sections := make([]GophermapSection, 0)
+
+    /* _Create_ hidden files map now in case dir listing requested */
     hidden := make(map[string]bool)
+
+    /* Keep track of whether we've already come across a title line (only 1 allowed!) */
+    titleAlready := false
+
+    /* Reference directory listing now in case requested */
     var dirListing *GophermapDirListing
 
     /* Perform buffered scan with our supplied splitter and iterators */
@@ -110,6 +117,13 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
                 case TypeInfoNotStated:
                     /* Append TypeInfo to the beginning of line */
                     sections = append(sections, NewGophermapText(buildInfoLine(line)))
+
+                case TypeTitle:
+                    /* Reformat title line to send as info title */
+                    if !titleAlready {
+                        sections = append(sections, NewGophermapText(buildLine(TypeInfo, line[1:], "TITLE", "", 0)))
+                        titleAlready = true
+                    }
 
                 case TypeComment:
                     /* We ignore this line */
