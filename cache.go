@@ -4,7 +4,6 @@ import (
     "os"
     "sync"
     "time"
-    "container/list"
 )
 
 var (
@@ -27,10 +26,10 @@ func startFileMonitor() {
     go func() {
         for {
             /* Sleep so we don't take up all the precious CPU time :) */
-            time.Sleep(FileMonitorSleepTime)
+            time.Sleep(5 * time.Second)
 
             /* Check global file cache freshness */
-            checkCacheFreshness(GlobalFileCache)
+            checkCacheFreshness()
         }
 
         /* We shouldn't have reached here */
@@ -38,58 +37,43 @@ func startFileMonitor() {
     }()
 }
 
-func checkCacheFreshness(cache *FileCache) {
-    /* Before anything, get cache read lock */
-    cache.CacheMutex.RLock()
+func checkCacheFreshness() {
+    /* Before anything, get cache write lock (in case we have to delete) */
+    GlobalFileCache.CacheMutex.Lock()
 
     /* Iterate through paths in cache map to query file last modified times */
-    for path := range cache.CacheMap {
+    for path := range GlobalFileCache.CacheMap.Map {
         stat, err := os.Stat(path)
         if err != nil {
-            /* Gotta be speedy, skip on error */
-            logSystemError("failed to stat file in cache: %s\n", path)
+            /* Log file as not in cache, then delete */
+            logSystemError("Failed to stat file in cache: %s\n", path)
+            GlobalFileCache.CacheMap.Remove(path)
             continue
         }
         timeModified := stat.ModTime().UnixNano()
 
-        /* Get file pointer and immediately get write lock */
-        file := cache.CacheMap[path].File
-        file.Lock()
+        /* Get file pointer, no need for lock as we have write lock */
+        file := GlobalFileCache.CacheMap.Get(path)
 
         /* If the file is marked as fresh, but file on disk newer, mark as unfresh */
         if file.IsFresh() && file.LastRefresh() < timeModified {
             file.SetUnfresh()
         }
-
-        /* Done with file, we can release write lock */
-        file.Unlock()
     }
 
     /* Done! We can release cache read lock */
-    cache.CacheMutex.RUnlock()
-}
-
-type FileElement struct {
-    File    *File
-    Element *list.Element
+    GlobalFileCache.CacheMutex.Unlock()
 }
 
 /* TODO: see if there is more efficienct setup */
 type FileCache struct {
-    CacheMap   map[string]*FileElement
+    CacheMap   *FixedMap
     CacheMutex sync.RWMutex
-    FileList   *list.List
-    ListMutex  sync.Mutex
-    Size       int
 }
 
 func (fc *FileCache) Init(size int) {
-    fc.CacheMap = make(map[string]*FileElement)
+    fc.CacheMap = NewFixedMap(size)
     fc.CacheMutex = sync.RWMutex{}
-    fc.FileList = list.New()
-    fc.FileList.Init()
-    fc.ListMutex = sync.Mutex{}
-    fc.Size = size
 }
 
 func (fc *FileCache) FetchRegular(path string) ([]byte, *GophorError) {
@@ -111,31 +95,31 @@ func (fc *FileCache) FetchGophermap(path string) ([]byte, *GophorError) {
 func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContents) ([]byte, *GophorError) {
     /* Get cache map read lock then check if file in cache map */
     fc.CacheMutex.RLock()
-    fileElement, ok := fc.CacheMap[path]
+    file := fc.CacheMap.Get(path)
 
     /* TODO: work on efficiency */
-    if ok {
+    if file != nil {
         /* File in cache -- before doing anything get file read lock */
-        fileElement.File.RLock()
+        file.RLock()
 
         /* Check file is marked as fresh */
-        if !fileElement.File.IsFresh() {
+        if !file.IsFresh() {
             /* File not fresh! Swap file read for write-lock */
-            fileElement.File.RUnlock()
-            fileElement.File.Lock()
+            file.RUnlock()
+            file.Lock()
 
             /* Reload file contents from disk */
-            gophorErr := fileElement.File.LoadContents()
+            gophorErr := file.LoadContents()
             if gophorErr != nil {
                 /* Error loading contents, unlock all mutex then return error */
-                fileElement.File.Unlock()
+                file.Unlock()
                 fc.CacheMutex.RUnlock()
                 return nil, gophorErr
             }
 
             /* Updated! Swap back file write for read lock */
-            fileElement.File.Unlock()
-            fileElement.File.RLock()
+            file.Unlock()
+            file.RLock()
         }
     } else {
         /* Before we do ANYTHING, we need to check file-size on disk */
@@ -179,29 +163,8 @@ func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContent
         fc.CacheMutex.RUnlock()
         fc.CacheMutex.Lock()
 
-        /* Place path in FileList to get back element */
-        element := fc.FileList.PushFront(path)
-
-        /* Create fileElement and place in map */
-        fileElement = &FileElement{ file, element }
-        fc.CacheMap[path] = fileElement
-
-        /* If we're at capacity, remove last item in list from cachemap + cache list */
-        if fc.FileList.Len() == fc.Size {
-            removeElement := fc.FileList.Back()
-
-            /* Have to perform type assertion even if we know value will always be string.
-             * If not, we may as well os.Exit(1) out since error is fatal
-             */
-            removePath, ok := removeElement.Value.(string)
-            if !ok {
-                logSystemFatal("non-string found in cache list!\n")
-            }
-
-            /* Now delete. We don't need ListMutex lock as we have cache map write lock */
-            delete(fc.CacheMap, removePath)
-            fc.FileList.Remove(removeElement)
-        }
+        /* Put file in the FixedMap */
+        fc.CacheMap.Put(path, file)
 
         /* Before unlocking cache mutex, lock file read for upcoming call to .Contents() */
         file.RLock()
@@ -211,16 +174,9 @@ func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContent
         fc.CacheMutex.RLock()
     }
 
-    /* Get list lock, ready to update placement in list */
-    fc.ListMutex.Lock()
-
     /* Read file contents into new variable for return, then unlock file read lock */
-    b := fileElement.File.Contents()
-    fileElement.File.RUnlock()
-
-    /* Update placement in list then unlock */
-    fc.FileList.MoveToFront(fileElement.Element)
-    fc.ListMutex.Unlock()
+    b := file.Contents()
+    file.RUnlock()
 
     /* Finally we can unlock the cache map read lock, we are done :) */
     fc.CacheMutex.RUnlock()
