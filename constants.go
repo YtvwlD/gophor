@@ -12,7 +12,7 @@ const (
     MaxUserNameLen = 70  /* RFC 1436 standard */
     MaxSelectorLen = 255 /* RFC 1436 standard */
 
-    NullSelector = "/"
+    NullSelector = "-"
     NullHost = "null.host"
     NullPort = 0
 

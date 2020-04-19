@@ -13,8 +13,8 @@ func generateCapsTxt() []byte {
     text += "PathIdentity=."+DOSLineEnd
     text += "PathParent=.."+DOSLineEnd
     text += "PathParentDouble=FALSE"+DOSLineEnd
-    text += "PathEscapeCharacter=\\"
-    text += "PathKeepPreDelimeter=FALSE"
+    text += "PathEscapeCharacter=\\"+DOSLineEnd
+    text += "PathKeepPreDelimeter=FALSE"+DOSLineEnd
     text += DOSLineEnd
     text += "ServerSoftware=Gophor"+DOSLineEnd
     text += "ServerSoftwareVersion="+GophorVersion+DOSLineEnd

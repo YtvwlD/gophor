@@ -134,6 +134,15 @@ func (worker *Worker) Respond(data []byte) *GophorError {
     /* Sanitize supplied path */
     requestPath := worker.SanitizePath(dataStr)
 
+    /* Handle policy files */
+    switch requestPath {
+        case "/"+CapsTxtStr:
+            return worker.SendRaw(generateCapsTxt())
+
+        case "/"+RobotsTxtStr:
+            return worker.SendRaw(generateRobotsTxt())
+    }
+
     /* Open requestPath */
     file, err := os.Open(requestPath)
     if err != nil {
