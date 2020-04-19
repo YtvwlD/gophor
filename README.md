@@ -105,7 +105,7 @@ Type | Treat as | Meaning
 
 Commonly used:
 Type | Treat as | Meaning
- !   |     -    | [SERVER ONLY] Menu title (use on first line)
+ !   |     -    | [SERVER ONLY] Menu title (can be used once)
  #   |     -    | [SERVER ONLY] Comment, rest of line is ignored
  -   |     -    | [SERVER ONLY] Hide file/directory from directory listing
  .   |     -    | [SERVER ONLY] Last line -- stop processing gophermap default
