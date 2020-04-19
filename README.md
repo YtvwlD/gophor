@@ -18,7 +18,8 @@ that would be hugely appreciated 💕 https://liberapay.com/grufwub/
 ```
 gophor [args]
        -root           Change server root directory.
-       -port           Change server listening port.
+       -port           Change server NON-TLS listening port.
+       -port-tls       Change server TLS listening port.
        -hostname       Change server hostname (FQDN, used to craft dir lists).
        -bind-addr      Change server bind-address (used in creating socket).
        -uid            Change UID to drop privileges to.
@@ -60,42 +61,61 @@ gophor [args]
 
 # Supported gophermap item types
 
+All of the following item types are supported by Gophor, separated into
+grouped standards. Most handling of item types is performed by the clients
+connecting to Gophor, but when performing directory listings Gophor will
+attempt to automatically classify files according to the below types.
+
+Item types listed as `[SERVER ONLY]` means that these are item types
+recognised ONLY by Gophor and to be used when crafting a gophermap. They
+provide additional methods of formatting / functionality within a gophermap,
+and the output of these item types is usually converted to informational
+text lines before sending to connecting clients.
+
 ```
-0 -- regular file (text)
-1 -- directory (menu)
-2 -- CSO phone-book server... should you be using this in 2020 lmao
-3 -- Error
-4 -- Binhexed macintosh file
-5 -- DOS bin archive
-6 -- Unix uuencoded file
-7 -- Index-search server
-8 -- Text-based telnet session
-9 -- Binary file
-T -- Text-based tn3270 session... in 2020???
-g -- Gif format graphic
-I -- Image file of some kind
+RFC 1436 Standard:
+Type | Treat as | Meaning
+ 0   |   TEXT   | Regular file (text)
+ 1   |   MENU   | Directory (menu)
+ 2   | EXTERNAL | CCSO flat db; other db
+ 3   |  ERROR   | Error message
+ 4   |   TEXT   | Macintosh BinHex file
+ 5   |  BINARY  | Binary archive (zip, rar, 7zip, tar, gzip, etc)
+ 6   |   TEXT   | UUEncoded archive
+ 7   |   INDEX  | Query search engine or CGI script
+ 8   | EXTERNAL | Telnet to: VT100 series server
+ 9   |  BINARY  | Binary file (see also, 5)
+ T   | EXTERNAL | Telnet to: tn3270 series server
+ g   |  BINARY  | GIF format image file (just use I)
+ I   |  BINARY  | Any format image file
+ +   |     -    | Redundant (indicates mirror of previous item)
 
-+ -- Redundant server
+GopherII Standard:
+Type | Treat as | Meaning
+ c   |  BINARY  | Calendar file
+ d   |  BINARY  | Word-processing document; PDF document
+ h   |   TEXT   | HTML document
+ i   |     -    | Informational text (not selectable)
+ p   |   TEXT   | Page layout or markup document (plain text w/ ASCII tags)
+ m   |  BINARY  | Email repository (MBOX)
+ s   |  BINARY  | Audio recordings
+ x   |   TEXT   | eXtensible Markup Language document
+ ;   |  BINARY  | Video files
 
-. -- Lastline if this followed by CrLf
+Commonly used:
+Type | Treat as | Meaning
+ !   |     -    | Menu title (use on first line)
+ #   |     -    | [SERVER ONLY] Comment, rest of line is ignored
+ -   |     -    | [SERVER ONLY] Hide file/directory from directory listing
+ .   |     -    | [SERVER ONLY] Last line -- stop processing gophermap default
+ *   |     -    | [SERVER ONLY] Last line + directory listing -- stop processing
+     |          |               gophermap and end on a directory listing
+ =   |     -    | [SERVER ONLY] Include subgophermap / regular file here. Prints
+     |          |               and formats file / gophermap in-place
 
-i -- Info message
-h -- HTML document
-s -- Audio file
-p -- PNG image
-d -- Document
-
-M -- MIME type file
-; -- Video file
-c -- Calendar file
-! -- Title
-# -- Comment (not displayed)
-- -- Hide file from directory listing
-= -- Include subgophermap (prints file output here)
-* -- Act as-if lastline and print directory listing below
-
-Unavailable for now due to issues with accessing path within chroot:
-$ -- Execute shell command and print stdout here
+Planned to be supported:
+Type | Treat as | Meaning
+ $   |     -    | [SERVER ONLY] Execute shell command and print stdout here
 ```
 
 # Todos
@@ -132,10 +152,13 @@ As soon as we reach a stable point in development, or if other people start
 contributing issues or PRs, whichever comes first, this will be changed
 right away.
 
-# Standards followed
+# Resources used
 
 Gopher-II (The Next Generation Gopher WWIS):
 https://tools.ietf.org/html/draft-matavka-gopher-ii-00
+
+Gophernicus supported item types:
+https://github.com/gophernicus/gophernicus/blob/master/README.gophermap
 
 All of the below can be viewed from your standard web browser using
 floodgap's Gopher proxy:
