@@ -3,10 +3,9 @@ package main
 import (
     "strconv"
     "strings"
-    "path/filepath"
 )
 
-var FileExtensions = map[string]ItemType{
+var SingleFileExtMap = map[string]ItemType{
     ".out":   TypeBin,
     ".a":     TypeBin,
     ".o":     TypeBin,
@@ -51,6 +50,10 @@ var FileExtensions = map[string]ItemType{
     ".mkv":   TypeVideo,
 }
 
+var DoubleFileExtMap = map[string]ItemType{
+    ".tar.gz": TypeBin,
+}
+
 func buildLine(t ItemType, name, selector, host string, port int) []byte {
     ret := string(t)
 
@@ -91,12 +94,50 @@ func buildInfoLine(content string) []byte {
 }
 
 func getItemType(name string) ItemType {
-    extension := strings.ToLower(filepath.Ext(name))
-    fileType, ok := FileExtensions[extension]
-    if !ok {
-        return TypeDefault
+    nameLower := strings.ToLower(name)
+
+    /* If regex compiled, check if matches user restricted files */
+    if RestrictedFilesRegex != nil &&
+       RestrictedFilesRegex.MatchString(nameLower) {
+        return TypeBanned
     }
-    return fileType
+
+    /* First we look at how many '.' in name string */
+    switch strings.Count(nameLower, ".") {
+        case 0:
+            /* Always return TypeDefault. We can never tell */
+            return TypeDefault
+
+        case 1:
+            /* Get index of ".", try look in SingleFileExtMap */
+            i := strings.IndexByte(nameLower, '.')
+            fileType, ok := SingleFileExtMap[nameLower[i:]]
+            if ok {
+                return fileType
+            } else {
+                return TypeDefault
+            }
+
+        default:
+            /* Get index of penultimate ".", try look in DoubleFileExtMap */
+            i, j := len(nameLower)-1, 0
+            for i >= 0 {
+                if nameLower[i] == '.' {
+                    if j == 1 {
+                        break
+                    } else {
+                        j += 1
+                    }
+                }
+                i -= 1
+            }
+            fileType, ok := DoubleFileExtMap[nameLower[i:]]
+            if ok {
+                return fileType
+            } else {
+                return TypeDefault
+            }
+    }
 }
 
 func parseLineType(line string) ItemType {

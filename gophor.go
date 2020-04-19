@@ -65,6 +65,9 @@ func main() {
     signals := make(chan os.Signal)
     signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
+    /* Compile user restricted files regex if supplied */
+    compileUserRestrictedFilesRegex()
+
     /* Start file cache system */
     startFileCaching()
 
