@@ -106,6 +106,12 @@ func chrootServerDir() {
     if err != nil {
         logSystemFatal("Error chroot'ing into server root %s: %s\n", *ServerRoot, err.Error())
     }
+
+    /* Change to server root just to ensure we're sitting at root of chroot */
+    err = syscall.Chdir("/")
+    if err != nil {
+        logSystemFatal("Error changing to root of chroot dir: %s\n", err.Error())
+    }
 }
 
 func setPrivileges() {
