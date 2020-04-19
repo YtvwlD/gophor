@@ -72,25 +72,14 @@ func buildLine(t ItemType, name, selector, host string, port int) []byte {
         ret += selector+"\t"
     }
 
-    /* Add host, set to nullhost if empty */
-    if host == "" {
-        ret += NullHost+"\t"
-    } else {
-        ret += host+"\t"
-    }
-
-    /* Add port, set to nullport if 0 */
-    if port == 0 {
-        ret += NullPort+DOSLineEnd
-    } else {
-        ret += strconv.Itoa(port)+DOSLineEnd
-    }
+    /* Add host + port */
+    ret += host+"\t"+strconv.Itoa(port)+DOSLineEnd
 
     return []byte(ret)
 }
 
 func buildInfoLine(content string) []byte {
-    return buildLine(TypeInfo, content, "", "", 0)
+    return buildLine(TypeInfo, content, NullSelector, NullHost, NullPort)
 }
 
 /* getItemType(name string) ItemType:

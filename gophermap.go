@@ -121,7 +121,7 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
                 case TypeTitle:
                     /* Reformat title line to send as info title */
                     if !titleAlready {
-                        sections = append(sections, NewGophermapText(buildLine(TypeInfo, line[1:], "TITLE", "", 0)))
+                        sections = append(sections, NewGophermapText(buildLine(TypeInfo, line[1:], "TITLE", NullHost, NullPort)))
                         titleAlready = true
                     }
 
