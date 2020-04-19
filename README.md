@@ -29,6 +29,8 @@ gophor [args]
        -cache-size     Change max no. files in file-cache.
        -cache-file-max Change maximum allowed size of a cached file.
        -page-width     Change page width used when formatting output.
+       -restrict-files New-line separated list of regex statements restricting
+                       files from showing in directory listing.
 ```
 
 # Features
