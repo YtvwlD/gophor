@@ -13,6 +13,8 @@ I'm unemployed (not due to lack of effort...) and work on open-source projects
 like this and many others for free. If you would like to help support my work
 that would be hugely appreciated 💕 https://liberapay.com/grufwub/
 
+WARNING: the development branch is filled with lava, fear and capitalism.
+
 # Usage
 
 ```
@@ -103,7 +105,7 @@ Type | Treat as | Meaning
 
 Commonly used:
 Type | Treat as | Meaning
- !   |     -    | Menu title (use on first line)
+ !   |     -    | [SERVER ONLY] Menu title (use on first line)
  #   |     -    | [SERVER ONLY] Comment, rest of line is ignored
  -   |     -    | [SERVER ONLY] Hide file/directory from directory listing
  .   |     -    | [SERVER ONLY] Last line -- stop processing gophermap default
@@ -116,6 +118,68 @@ Planned to be supported:
 Type | Treat as | Meaning
  $   |     -    | [SERVER ONLY] Execute shell command and print stdout here
 ```
+
+# Compliance
+
+## Item types
+
+Supported item types are listed above.
+
+Informational lines are sent as `i<text here>\t/\tnull.host\t0`.
+
+Titles are sent as `i<title text>\tTITLE\tnull.host\t0`.
+
+Web address links are sent as `h<text here>\tURL:<address>\thostname\tport`.
+An HTML redirect is sent in response to any requests beginning with `URL:`.
+
+## Policy files
+
+Upon request, `caps.txt` can be provided from the server root directory
+containing server capabiities. This can either be user or server generated.
+
+Upon request, `robots.txt` can be provided from the server root directory
+containing robot access restriction policies. This can either be user or
+server generated.
+
+## Errors
+
+Errors are sent according to GopherII standards, terminating with a last
+line if required:
+`3\t[ERROR TEXT]\thost\tportCR-LF`
+
+Possible Gophor errors:
+```
+     Text                 |      Meaning
+400 Bad Request           | Request not understood by server due to malformed
+                          | syntax
+401 Unauthorised          | Request requires authentication
+403 Forbidden             | Request received but not fulfilled
+404 Not Found             | Server could not find anything matching requested
+                          | URL
+408 Request Time-out      | Client did not produce request within server wait
+                          | time
+410 Gone                  | Requested resource no longer available with no
+                          | forwarding address
+500 Internal Server Error | Server encountered an unexpected condition which
+                          | prevented request being fulfilled
+501 Not Implemented       | Server does not support the functionality
+                          | required to fulfil the request
+503 Service Unavailable   | Server currently unable to handle the request
+                          | due to temporary overload / maintenance
+```
+
+## Terminating full stop
+
+Gophor will send a terminating full-stop for menus, but not for served
+files.
+
+## Placeholder text
+
+Selector: `-`
+
+Host: `null.host`
+
+Port: `0`
 
 # Todos
 
