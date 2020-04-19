@@ -7,8 +7,6 @@ import (
 )
 
 var (
-    FileMonitorSleepTime = time.Duration(*CacheCheckFreq) * time.Second
-
     /* Global file caches */
     GlobalFileCache *FileCache
 )
@@ -18,15 +16,21 @@ func startFileCaching() {
     GlobalFileCache = new(FileCache)
     GlobalFileCache.Init(*CacheSize)
 
+    /* Parse the supplied CacheCheckFreq */
+    sleepTime, err := time.ParseDuration(*CacheCheckFreq)
+    if err != nil {
+        logSystemFatal("Error parsing supplied cache check frequency %s: %s\n", *CacheCheckFreq, err)
+    }
+
     /* Start file monitor in separate goroutine */
-    go startFileMonitor()
+    go startFileMonitor(sleepTime)
 }
 
-func startFileMonitor() {
+func startFileMonitor(sleepTime time.Duration) {
     go func() {
         for {
             /* Sleep so we don't take up all the precious CPU time :) */
-            time.Sleep(5 * time.Second)
+            time.Sleep(sleepTime)
 
             /* Check global file cache freshness */
             checkCacheFreshness()
@@ -134,7 +138,7 @@ func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContent
         contents := newFileContents(path)
 
         /* Create new file wrapper around contents */
-        file := NewFile(contents)
+        file = NewFile(contents)
 
         /* NOTE: file isn't in cache yet so no need to lock file write mutex
          * before loading from disk

@@ -28,6 +28,7 @@ func NewFixedMap(size int) *FixedMap {
     fm := new(FixedMap)
     fm.Map = make(map[string]*MapElement)
     fm.List = list.New()
+    fm.Size = size
     return fm
 }
 
@@ -44,7 +45,7 @@ func (fm *FixedMap) Put(key string, value *File) {
     element := fm.List.PushFront(key)
     fm.Map[key] = &MapElement{ element, value }
 
-    if fm.List.Len() == fm.Size {
+    if fm.List.Len() > fm.Size {
         /* We're at capacity! SIR! */
         element = fm.List.Back()
 
@@ -54,6 +55,8 @@ func (fm *FixedMap) Put(key string, value *File) {
         /* Finally delete the map entry and list element! */
         delete(fm.Map, key)
         fm.List.Remove(element)
+
+        logSystem("Popped key: %s\n", key)
     }
 }
 
