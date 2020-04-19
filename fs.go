@@ -46,7 +46,7 @@ func (f *File) LoadContents() *GophorError {
         return gophorErr
     }
 
-    /* Update lastRefresh + set fresh */
+    /* Update lastRefresh, set fresh, unset deletion (not likely set) */
     f.lastRefresh = time.Now().UnixNano()
     f.isFresh     = true
 

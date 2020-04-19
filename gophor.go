@@ -28,6 +28,8 @@ import (
 */
 import "C"
 
+const GophorVersion = "0.1-alpha"
+
 /*
  * Gopher server
  */

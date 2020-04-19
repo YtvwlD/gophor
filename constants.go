@@ -22,6 +22,8 @@ const (
 
     /* Filesystem */
     GophermapFileStr = "gophermap"
+    CapsTxtStr = "caps.txt"
+    RobotsTxtStr = "robots.txt"
 
     /* Misc */
     BytesInMegaByte = 1048576.0

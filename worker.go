@@ -16,15 +16,11 @@ const (
 
 type Worker struct {
     Socket  net.Conn
-    Hidden  map[string]bool
 }
 
 func NewWorker(socket *net.Conn) *Worker {
     worker := new(Worker)
     worker.Socket = *socket
-    worker.Hidden = map[string]bool{
-        "gophermap": true,
-    }
     return worker
 }
 
