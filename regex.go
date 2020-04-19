@@ -10,6 +10,7 @@ var RestrictedFilesRegex *regexp.Regexp
 func compileUserRestrictedFilesRegex() {
     if *RestrictedFiles == "" {
         /* User not supplied any restricted files, return here */
+        getItemType = _getItemType
         return
     }
 
@@ -30,4 +31,6 @@ func compileUserRestrictedFilesRegex() {
     if err != nil {
         logSystemFatal("Failed compiling user restricted files regex: %s\n", finalRegex)
     }
+
+    getItemType = _getItemTypeMatchRestricted
 }

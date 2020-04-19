@@ -93,7 +93,17 @@ func buildInfoLine(content string) []byte {
     return buildLine(TypeInfo, content, "", "", 0)
 }
 
-func getItemType(name string) ItemType {
+/* getItemType(name string) ItemType:
+ * Here we use an empty function pointer, and set the correct
+ * function to be used during the restricted files regex parsing.
+ * This negates need to check if RestrictedFilesRegex is nil every
+ * single call.
+ */
+var getItemType func(name string) ItemType
+func _getItemType(name string) ItemType {
+    return _checkItemType(strings.ToLower(name))
+}
+func _getItemTypeMatchRestricted(name string) ItemType {
     nameLower := strings.ToLower(name)
 
     /* If regex compiled, check if matches user restricted files */
@@ -101,6 +111,11 @@ func getItemType(name string) ItemType {
        RestrictedFilesRegex.MatchString(nameLower) {
         return TypeBanned
     }
+
+    return _checkItemType(nameLower)
+}
+func _checkItemType(nameLower string) ItemType {
+    /* Name MUST be lower before passed to this function */
 
     /* First we look at how many '.' in name string */
     switch strings.Count(nameLower, ".") {
