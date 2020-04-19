@@ -19,7 +19,6 @@ that would be hugely appreciated 💕 https://liberapay.com/grufwub/
 gophor [args]
        -root           Change server root directory.
        -port           Change server NON-TLS listening port.
-       -port-tls       Change server TLS listening port.
        -hostname       Change server hostname (FQDN, used to craft dir lists).
        -bind-addr      Change server bind-address (used in creating socket).
        -uid            Change UID to drop privileges to.
