@@ -159,11 +159,7 @@ func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContent
             return b, nil
         }
 
-        /* File not in cache -- Swap cache map read for write lock.
-         * NOTE: Here we don't need a list mutex lock as it is impossible
-         *       for any other goroutine to get this lock while we have a cache
-         *       _write_ lock. Due to the way this Fetch() function is written
-         */
+        /* File not in cache -- Swap cache map read for write lock. */
         fc.CacheMutex.RUnlock()
         fc.CacheMutex.Lock()
 
