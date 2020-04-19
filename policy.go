@@ -1,45 +1,40 @@
 package main
 
-const (
-    CapsTxtStr   = "caps.txt"
-    RobotsTxtStr = "robots.txt"
-)
-
 func generateCapsTxt() []byte {
-    text := "CAPS"+CrLf
-    text += CrLf
-    text += "# This is an automatically generated"+CrLf
-    text += "# server policy file: caps.txt"+CrLf
-    text += CrLf
-    text += "CapsVersion=1"+CrLf
-    text += "ExpireCapsAfter=3600"+CrLf
-    text += CrLf
-    text += "PathDelimeter=/"+CrLf
-    text += "PathIdentity=."+CrLf
-    text += "PathParent=.."+CrLf
-    text += "PathParentDouble=FALSE"+CrLf
+    text := "CAPS"+DOSLineEnd
+    text += DOSLineEnd
+    text += "# This is an automatically generated"+DOSLineEnd
+    text += "# server policy file: caps.txt"+DOSLineEnd
+    text += DOSLineEnd
+    text += "CapsVersion=1"+DOSLineEnd
+    text += "ExpireCapsAfter=3600"+DOSLineEnd
+    text += DOSLineEnd
+    text += "PathDelimeter=/"+DOSLineEnd
+    text += "PathIdentity=."+DOSLineEnd
+    text += "PathParent=.."+DOSLineEnd
+    text += "PathParentDouble=FALSE"+DOSLineEnd
     text += "PathEscapeCharacter=\\"
     text += "PathKeepPreDelimeter=FALSE"
-    text += CrLf
-    text += "ServerSoftware=Gophor"+CrLf
-    text += "ServerSoftwareVersion="+GophorVersion+CrLf
-    text += "ServerDescription="+*ServerDescription+CrLf
-    text += "ServerGeolocationString="+*ServerGeoloc+CrLf
-    text += CrLf
-    text += "ServerSupportsStdinScripts=FALSE"+CrLf
-    text += CrLf
-    text += "ServerAdmin="+*ServerAdmin+CrLf
-    text += CrLf
-    text += "DefaultEncoding=ascii"+CrLf
+    text += DOSLineEnd
+    text += "ServerSoftware=Gophor"+DOSLineEnd
+    text += "ServerSoftwareVersion="+GophorVersion+DOSLineEnd
+    text += "ServerDescription="+*ServerDescription+DOSLineEnd
+    text += "ServerGeolocationString="+*ServerGeoloc+DOSLineEnd
+    text += DOSLineEnd
+    text += "ServerSupportsStdinScripts=FALSE"+DOSLineEnd
+    text += DOSLineEnd
+    text += "ServerAdmin="+*ServerAdmin+DOSLineEnd
+    text += DOSLineEnd
+    text += "DefaultEncoding=ascii"+DOSLineEnd
     return []byte(text)
 }
 
 func generateRobotsTxt() []byte {
-    text := "Usage-agent: *"+CrLf
-    text += "Disallow: *"+CrLf
-    text += CrLf
-    text += "Crawl-delay: 99999"+CrLf
-    text += CrLf
-    text += "# This server does not support scraping"
+    text := "Usage-agent: *"+DOSLineEnd
+    text += "Disallow: *"+DOSLineEnd
+    text += DOSLineEnd
+    text += "Crawl-delay: 99999"+DOSLineEnd
+    text += DOSLineEnd
+    text += "# This server does not support scraping"+DOSLineEnd
     return []byte(text)
 }
