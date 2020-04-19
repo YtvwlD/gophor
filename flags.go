@@ -17,7 +17,7 @@ var (
 
     /* Content settings */
     PageWidth        = flag.Int("page-width", 80, "Change page width used when formatting output.")
-    RestrictedFiles  = flag.String("restrict-files", "", "Comma-separated list of regex statements restricting files from showing in directory listings.")
+    RestrictedFiles  = flag.String("restrict-files", "", "New-line separated list of regex statements restricting files from showing in directory listings.")
 
     /* Logging settings */
     SystemLog        = flag.String("system-log", "", "Change server system log file (blank outputs to stderr).")
