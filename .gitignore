@@ -1,3 +1,4 @@
 gophor
 *.log
 *.old
+build/
