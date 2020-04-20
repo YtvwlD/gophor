@@ -2,8 +2,8 @@ package main
 
 import (
     "log"
-    "fmt"
     "os"
+    "strconv"
     "syscall"
     "os/signal"
     "flag"
@@ -28,11 +28,10 @@ import (
 */
 import "C"
 
-const GophorVersion = "0.1-alpha"
+var (
+    PreviouslyConnected []string
+)
 
-/*
- * Gopher server
- */
 func main() {
     /* Setup global logger */
     log.SetOutput(os.Stderr)
@@ -52,15 +51,22 @@ func main() {
     chrootServerDir()
     logSystem("Chroot success, new root: %s\n", *ServerRoot)
 
-    /* Set-up socket while we still have privileges (if held) */
-    listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *ServerBindAddr, *ServerPort))
-    if err != nil {
-        logSystemFatal("Error opening socket on port %d: %s\n", *ServerPort, err.Error())
-    }
-    defer listener.Close()
-    logSystem("Listening: gopher://%s\n", listener.Addr())
+    /* Setup listeners */
+    listeners := make([]net.Listener, 0)
 
-    /* Set privileges, see function definition for better explanation */
+    /* If provided unencrypted port, setup listener! */
+    if *ServerPort != 0 {
+        l, err := net.Listen("tcp", *ServerBindAddr+":"+strconv.Itoa(*ServerPort))
+        if err != nil {
+            logSystemFatal("Error setting up listener on %s: %s\n", *ServerBindAddr+":"+strconv.Itoa(*ServerPort), err.Error())
+        }
+        defer l.Close()
+        logSystem("Listening (unencrypted): gopher://%s\n", l.Addr())
+
+        listeners = append(listeners, l)
+    }
+
+    /* Now we've made system calls, drop privileges */
     setPrivileges()
 
     /* Handle signals so we can _actually_ shutdowm */
@@ -73,22 +79,24 @@ func main() {
     /* Start file cache system */
     startFileCaching()
 
-    /* Serve unencrypted traffic */
-    go func() {
-        for {
-            newConn, err := listener.Accept()
-            if err != nil {
-                logSystemError("Error accepting connection: %s\n", err.Error())
-                continue
-            }
+    /* Start accepting connections on any supplied listeners */
+    for _, l := range listeners {
+        go func() {
+            for {
+                newConn, err := l.Accept()
+                if err != nil {
+                    logSystemError("Error accepting connection: %s\n", err.Error())
+                    continue
+                }
 
-            /* Run this in it's own goroutine so we can go straight back to accepting */
-            go func() {
-                w := NewWorker(&newConn)
-                w.Serve()
-            }()
-        }
-    }()
+                /* Run this in it's own goroutine so we can go straight back to accepting */
+                go func() {
+                    w := NewWorker(&newConn)
+                    w.Serve()
+                }()
+            }
+        }()
+    }
 
     /* When OS signal received, we close-up */
     sig := <-signals

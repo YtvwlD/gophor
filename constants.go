@@ -1,6 +1,9 @@
 package main
 
 const (
+    /* Gophor */
+    GophorVersion = "0.1-alpha"
+
     /* Parsing */
     DOSLineEnd = "\r\n"
     UnixLineEnd = "\n"

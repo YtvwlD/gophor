@@ -7,7 +7,7 @@ func generateCapsTxt() []byte {
     text += "# server policy file: caps.txt"+DOSLineEnd
     text += DOSLineEnd
     text += "CapsVersion=1"+DOSLineEnd
-    text += "ExpireCapsAfter=3600"+DOSLineEnd
+    text += "ExpireCapsAfter=1800"+DOSLineEnd
     text += DOSLineEnd
     text += "PathDelimeter=/"+DOSLineEnd
     text += "PathIdentity=."+DOSLineEnd
@@ -20,12 +20,9 @@ func generateCapsTxt() []byte {
     text += "ServerSoftwareVersion="+GophorVersion+DOSLineEnd
     text += "ServerDescription="+*ServerDescription+DOSLineEnd
     text += "ServerGeolocationString="+*ServerGeoloc+DOSLineEnd
-    text += DOSLineEnd
-    text += "ServerSupportsStdinScripts=FALSE"+DOSLineEnd
+    text += "ServerDefaultEncoding=ascii"+DOSLineEnd
     text += DOSLineEnd
     text += "ServerAdmin="+*ServerAdmin+DOSLineEnd
-    text += DOSLineEnd
-    text += "DefaultEncoding=ascii"+DOSLineEnd
     return []byte(text)
 }
 

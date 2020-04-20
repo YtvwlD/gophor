@@ -10,8 +10,6 @@ var (
     ServerHostname    = flag.String("hostname", "127.0.0.1", "Change server hostname (FQDN).")
     ServerPort        = flag.Int("port", 70, "Change server port (0 to disable unencrypted traffic).")
     ServerBindAddr    = flag.String("bind-addr", "127.0.0.1", "Change server socket bind address")
-//    ServerTlsPort  = flag.Int("tls-port", 0, "Change server TLS/SSL port (0 to disable).")
-//    ServerTlsCert  = flag.String("cert", "", "Change server TLS/SSL cert file.")
     ExecAsUid         = flag.Int("uid", 1000, "Change UID to drop executable privileges to.")
     ExecAsGid         = flag.Int("gid", 100, "Change GID to drop executable privileges to.")
 

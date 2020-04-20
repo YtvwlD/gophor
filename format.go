@@ -54,6 +54,12 @@ var DoubleFileExtMap = map[string]ItemType{
     ".tar.gz": TypeBin,
 }
 
+func buildError(selector string) []byte {
+    ret := string(TypeError)
+    ret += selector + DOSLineEnd
+    return []byte(ret)
+}
+
 func buildLine(t ItemType, name, selector, host string, port int) []byte {
     ret := string(t)
 
@@ -88,23 +94,9 @@ func buildInfoLine(content string) []byte {
  * This negates need to check if RestrictedFilesRegex is nil every
  * single call.
  */
-var getItemType func(name string) ItemType
-func _getItemType(name string) ItemType {
-    return _checkItemType(strings.ToLower(name))
-}
-func _getItemTypeMatchRestricted(name string) ItemType {
+func getItemType(name string) ItemType {
+    /* Name MUST be lower */
     nameLower := strings.ToLower(name)
-
-    /* If regex compiled, check if matches user restricted files */
-    if RestrictedFilesRegex != nil &&
-       RestrictedFilesRegex.MatchString(nameLower) {
-        return TypeBanned
-    }
-
-    return _checkItemType(nameLower)
-}
-func _checkItemType(nameLower string) ItemType {
-    /* Name MUST be lower before passed to this function */
 
     /* First we look at how many '.' in name string */
     switch strings.Count(nameLower, ".") {
@@ -187,4 +179,3 @@ func parseLineType(line string) ItemType {
 
     return ItemType(line[0])
 }
-
