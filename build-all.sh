@@ -18,12 +18,12 @@ rm -rf "$OUTDIR"
 mkdir -p "$OUTDIR"
 
 # Build time :)
-build 'i686-linux-musl-gcc'        'linux' '386'     'pie'     'netgo' '-w -extldflags "-static"'
-build 'x86_64-linux-musl-gcc'      'linux' 'amd64'   'pie'     'netgo' '-w -extldflags "-static"'
-build 'arm-linux-musleabi-gcc'     'linux' 'arm'     'pie'     'netgo' '-w -extldflags "-static"'
-build 'aarch64-linux-musl-gcc'     'linux' 'arm64'   'pie'     'netgo' '-w -extldflags "-static"'
-build 'mips-linux-musl-gcc'        'linux' 'mips'    'default' 'netgo' '-w -extldflags "-static"'
-#build 'powerpc64-linux-musl-gcc'   'linux' 'ppc64'   'default' 'netgo' '-w -extldflags "-static"'
-build 'powerpc64le-linux-musl-gcc' 'linux' 'ppc64le' 'pie'     'netgo' '-w -extldflags "-static"'
+build 'i686-linux-musl-gcc'        'linux' '386'     'pie'     'netgo' '-s -w -extldflags "-static"'
+build 'x86_64-linux-musl-gcc'      'linux' 'amd64'   'pie'     'netgo' '-s -w -extldflags "-static"'
+build 'arm-linux-musleabi-gcc'     'linux' 'arm'     'pie'     'netgo' '-s -w -extldflags "-static"'
+build 'aarch64-linux-musl-gcc'     'linux' 'arm64'   'pie'     'netgo' '-s -w -extldflags "-static"'
+build 'mips-linux-musl-gcc'        'linux' 'mips'    'default' 'netgo' '-s -w -extldflags "-static"'
+#build 'powerpc64-linux-musl-gcc'   'linux' 'ppc64'   'default' 'netgo' '-s -w -extldflags "-static"'
+build 'powerpc64le-linux-musl-gcc' 'linux' 'ppc64le' 'pie'     'netgo' '-s -w -extldflags "-static"'
 
 echo "PLEASE DON'T JUDGE THIS SCRIPT, IT IS TRULY SO AWFUL. TO BE IMPROVED..."
