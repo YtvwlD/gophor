@@ -29,5 +29,5 @@ func generateHtmlRedirect(url string) []byte {
         "</body>\n"+
         "</html>\n"
 
-    return generateHttpResponse(ErrorResponse200, content)
+    return []byte(content)
 }
