@@ -86,6 +86,5 @@ const (
     /* Gophor specific types */
     TypeExec          = ItemType('$') /* Execute command and insert stdout here */
     TypeInfoNotStated = ItemType('z') /* INTERNAL USE. We use this in a switch case, a line never starts with this */
-    TypeBanned        = ItemType('@') /* INTERNAL USE. We use this in a switch case, a line never starts with this */
     TypeUnknown       = ItemType('?') /* INTERNAL USE. We use this in a switch case, a line never starts with this */
 )
