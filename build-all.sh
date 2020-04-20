@@ -5,7 +5,7 @@ OUTDIR='build'
 
 build() {
     echo "Building $PROJECT for $1_$2..."
-    env GOOS="$1" GOARCH="$2" go build -trimpath -o="$OUTDIR/$PROJECT.$1.$2" -buildmode="$3"
+    GOOS="$1" GOARCH="$2" go build -trimpath -o="$OUTDIR/$PROJECT.$1.$2" -buildmode="$3" -a -tags 'netgo' -ldflags '-w -extldflags "-static"'
     echo ''
 }
 
