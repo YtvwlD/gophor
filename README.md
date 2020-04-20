@@ -27,12 +27,15 @@ gophor [args]
        -gid            Change GID to drop privileges to.
        -system-log     Path to gophor system log file, else use stderr.
        -access-log     Path to gophor access log file, else use stderr.
-       -cache-check    Change file-cache freshness check frequency (in secs).
+       -cache-check    Change file-cache freshness check frequency.
        -cache-size     Change max no. files in file-cache.
        -cache-file-max Change maximum allowed size of a cached file.
        -page-width     Change page width used when formatting output.
        -restrict-files New-line separated list of regex statements restricting
                        files from showing in directory listing.
+       -description    Change server description in auto generated caps.txt.
+       -admin-email    Change admin email in auto generated caps.txt.
+       -geloc          Change geolocation in auto generated caps.txt.
 ```
 
 # Features
