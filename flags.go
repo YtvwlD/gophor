@@ -28,7 +28,7 @@ var (
     LoggingType       = flag.Int("log-type", 0, "Change server log file handling -- 0:default 1:disable")
 
     /* Cache settings */
-    CacheCheckFreq    = flag.String("cache-check", "30s", "Change file cache freshness check frequency.")
-    CacheSize         = flag.Int("cache-size", 1000, "Change file cache size, measured in file count.")
-    CacheFileSizeMax  = flag.Float64("cache-file-max", 5, "Change maximum file size to be cached (in megabytes).")
+    CacheCheckFreq    = flag.String("cache-check", "60s", "Change file cache freshness check frequency.")
+    CacheSize         = flag.Int("cache-size", 50, "Change file cache size, measured in file count.")
+    CacheFileSizeMax  = flag.Float64("cache-file-max", 0.5, "Change maximum file size to be cached (in megabytes).")
 )
