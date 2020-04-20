@@ -1,6 +1,9 @@
 package main
 
 const (
+    /* Gophor */
+    GophorVersion = "0.1-alpha"
+
     /* Parsing */
     DOSLineEnd = "\r\n"
     UnixLineEnd = "\n"
@@ -12,8 +15,9 @@ const (
     MaxUserNameLen = 70  /* RFC 1436 standard */
     MaxSelectorLen = 255 /* RFC 1436 standard */
 
+    NullSelector = "-"
     NullHost = "null.host"
-    NullPort = "1"
+    NullPort = 0
 
     SelectorErrorStr = "selector_length_error"
     GophermapRenderErrorStr = ""
@@ -22,6 +26,8 @@ const (
 
     /* Filesystem */
     GophermapFileStr = "gophermap"
+    CapsTxtStr = "caps.txt"
+    RobotsTxtStr = "robots.txt"
 
     /* Misc */
     BytesInMegaByte = 1048576.0

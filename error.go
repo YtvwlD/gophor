@@ -8,6 +8,7 @@ import (
  * Client error data structure
  */
 type ErrorCode int
+type ErrorResponseCode int
 const (
     /* Filesystem */
     PathEnumerationErr  ErrorCode = iota
@@ -27,6 +28,19 @@ const (
     EmptyItemTypeErr    ErrorCode = iota
     EntityPortParseErr  ErrorCode = iota
     InvalidGophermapErr ErrorCode = iota
+
+    /* Error Response Codes */
+    ErrorResponse200 ErrorResponseCode = iota
+    ErrorResponse400 ErrorResponseCode = iota
+    ErrorResponse401 ErrorResponseCode = iota
+    ErrorResponse403 ErrorResponseCode = iota
+    ErrorResponse404 ErrorResponseCode = iota
+    ErrorResponse408 ErrorResponseCode = iota
+    ErrorResponse410 ErrorResponseCode = iota
+    ErrorResponse500 ErrorResponseCode = iota
+    ErrorResponse501 ErrorResponseCode = iota
+    ErrorResponse503 ErrorResponseCode = iota
+    NoResponse       ErrorResponseCode = iota
 )
 
 type GophorError struct {
@@ -74,5 +88,85 @@ func (e *GophorError) Error() string {
         return fmt.Sprintf("%s (%s)", str, e.Err.Error())
     } else {
         return fmt.Sprintf("%s", str)
+    }
+}
+
+func gophorErrorToResponseCode(code ErrorCode) ErrorResponseCode {
+    switch code {
+        case PathEnumerationErr:
+            return ErrorResponse400
+        case IllegalPathErr:
+            return ErrorResponse403
+        case FileStatErr:
+            return ErrorResponse404
+        case FileOpenErr:
+            return ErrorResponse404
+        case FileReadErr:
+            return ErrorResponse404
+        case FileTypeErr:
+            /* If wrong file type, just assume file not there */
+            return ErrorResponse404
+        case DirListErr:
+            return ErrorResponse404
+
+        /* These are errors sending, no point trying to send error */
+        case SocketWriteErr:
+            return NoResponse
+        case SocketWriteCountErr:
+            return NoResponse
+
+        case InvalidRequestErr:
+            return ErrorResponse400
+        case EmptyItemTypeErr:
+            return ErrorResponse500
+        case EntityPortParseErr:
+            return ErrorResponse500
+        case InvalidGophermapErr:
+            return ErrorResponse500
+
+        default:
+            return ErrorResponse503
+    }
+}
+
+func generateGopherErrorResponseFromCode(code ErrorCode) []byte {
+    responseCode := gophorErrorToResponseCode(code)
+    if responseCode == NoResponse {
+        return nil
+    }
+    return generateGopherErrorResponse(responseCode)
+}
+
+func generateGopherErrorResponse(code ErrorResponseCode) []byte {
+    b := buildError(code.String())
+    return append(b, []byte(LastLine)...)
+}
+
+func (e ErrorResponseCode) String() string {
+    switch e {
+        case ErrorResponse200:
+            return "200 OK"
+        case ErrorResponse400:
+            return "400 Bad Request"
+        case ErrorResponse401:
+            return "401 Unauthorised"
+        case ErrorResponse403:
+            return "403 Forbidden"
+        case ErrorResponse404:
+            return "404 Not Found"
+        case ErrorResponse408:
+            return "408 Request Time-out"
+        case ErrorResponse410:
+            return "410 Gone"
+        case ErrorResponse500:
+            return "500 Internal Server Error"
+        case ErrorResponse501:
+            return "501 Not Implemented"
+        case ErrorResponse503:
+            return "503 Service Unavailable"
+        default:
+            /* Should not have reached here */
+            logSystemFatal("Unhandled ErrorResponseCode type\n")
+            return ""
     }
 }

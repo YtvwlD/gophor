@@ -3,10 +3,9 @@ package main
 import (
     "strconv"
     "strings"
-    "path/filepath"
 )
 
-var FileExtensions = map[string]ItemType{
+var SingleFileExtMap = map[string]ItemType{
     ".out":   TypeBin,
     ".a":     TypeBin,
     ".o":     TypeBin,
@@ -51,6 +50,16 @@ var FileExtensions = map[string]ItemType{
     ".mkv":   TypeVideo,
 }
 
+var DoubleFileExtMap = map[string]ItemType{
+    ".tar.gz": TypeBin,
+}
+
+func buildError(selector string) []byte {
+    ret := string(TypeError)
+    ret += selector + DOSLineEnd
+    return []byte(ret)
+}
+
 func buildLine(t ItemType, name, selector, host string, port int) []byte {
     ret := string(t)
 
@@ -69,34 +78,62 @@ func buildLine(t ItemType, name, selector, host string, port int) []byte {
         ret += selector+"\t"
     }
 
-    /* Add host, set to nullhost if empty */
-    if host == "" {
-        ret += NullHost+"\t"
-    } else {
-        ret += host+"\t"
-    }
-
-    /* Add port, set to nullport if 0 */
-    if port == 0 {
-        ret += NullPort+DOSLineEnd
-    } else {
-        ret += strconv.Itoa(port)+DOSLineEnd
-    }
+    /* Add host + port */
+    ret += host+"\t"+strconv.Itoa(port)+DOSLineEnd
 
     return []byte(ret)
 }
 
 func buildInfoLine(content string) []byte {
-    return buildLine(TypeInfo, content, "", "", 0)
+    return buildLine(TypeInfo, content, NullSelector, NullHost, NullPort)
 }
 
+/* getItemType(name string) ItemType:
+ * Here we use an empty function pointer, and set the correct
+ * function to be used during the restricted files regex parsing.
+ * This negates need to check if RestrictedFilesRegex is nil every
+ * single call.
+ */
 func getItemType(name string) ItemType {
-    extension := strings.ToLower(filepath.Ext(name))
-    fileType, ok := FileExtensions[extension]
-    if !ok {
-        return TypeDefault
+    /* Name MUST be lower */
+    nameLower := strings.ToLower(name)
+
+    /* First we look at how many '.' in name string */
+    switch strings.Count(nameLower, ".") {
+        case 0:
+            /* Always return TypeDefault. We can never tell */
+            return TypeDefault
+
+        case 1:
+            /* Get index of ".", try look in SingleFileExtMap */
+            i := strings.IndexByte(nameLower, '.')
+            fileType, ok := SingleFileExtMap[nameLower[i:]]
+            if ok {
+                return fileType
+            } else {
+                return TypeDefault
+            }
+
+        default:
+            /* Get index of penultimate ".", try look in DoubleFileExtMap */
+            i, j := len(nameLower)-1, 0
+            for i >= 0 {
+                if nameLower[i] == '.' {
+                    if j == 1 {
+                        break
+                    } else {
+                        j += 1
+                    }
+                }
+                i -= 1
+            }
+            fileType, ok := DoubleFileExtMap[nameLower[i:]]
+            if ok {
+                return fileType
+            } else {
+                return TypeDefault
+            }
     }
-    return fileType
 }
 
 func parseLineType(line string) ItemType {
@@ -142,4 +179,3 @@ func parseLineType(line string) ItemType {
 
     return ItemType(line[0])
 }
-
