@@ -1,13 +1,13 @@
 # Gophor
 
+Holy shit we made it to our first alpha release!
+
 A Gopher server written in GoLang as a means of learning about the Gopher
 protocol, and more GoLang.
 
-Possibly beta quality soon? More likely alpha right now.
-
-`build.sh` and you're set to go! Just put `gophor` somewhere in your path.
-
-Linux only _for now_.
+Linux only _for now_. Cross-compiled to way too many architectures. Don't
+judge my build script, it's not easy on the eyes, I'll fix it when I can be
+bothered...
 
 I'm unemployed (not due to lack of effort...) and work on open-source projects
 like this and many others for free. If you would like to help support my work
