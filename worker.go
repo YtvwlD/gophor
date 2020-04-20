@@ -118,7 +118,7 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     /* Handle URL request if so */
     lenBefore := len(dataStr)
     dataStr = strings.TrimPrefix(dataStr, "URL:")
-    switch len(data) {
+    switch len(dataStr) {
         case lenBefore-4:
             /* Handle URL prefix */
             worker.Log("Redirecting to URL: %s\n", data)
@@ -228,19 +228,16 @@ func readUpToFirstTabOrCrlf(data []byte) string {
         if data[i] == '\t' {
             break
         } else if data[i] == DOSLineEnd[0] {
-            if i == dataLen-1 {
+            if i == dataLen-1 || data[i+1] == DOSLineEnd[1] {
                 /* Finished on Unix line end, NOT DOS */
-                return ""
-            } else if data[i+1] == DOSLineEnd[1] {
-                return dataStr
+                break
             }
         }
 
         dataStr += string(data[i])
     }
 
-    /* HAS to end on a tab or Crlf for valid gopher request */
-    return ""
+    return dataStr
 }
 
 func sanitizePath(dataStr string) string {
