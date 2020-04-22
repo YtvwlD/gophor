@@ -9,9 +9,9 @@ Linux only _for now_. Cross-compiled to way too many architectures. Don't
 judge my build script, it's not easy on the eyes, I'll fix it when I can be
 bothered...
 
-I'm unemployed (not due to lack of effort...) and work on open-source projects
-like this and many others for free. If you would like to help support my work
-that would be hugely appreciated 💕 https://liberapay.com/grufwub/
+I'm unemployed and work on open-source projects like this and many others for
+free. If you would like to help support my work that would be hugely
+appreciated 💕 https://liberapay.com/grufwub/
 
 WARNING: the development branch is filled with lava, fear and capitalism.
 
