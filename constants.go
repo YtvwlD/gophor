@@ -2,7 +2,7 @@ package main
 
 const (
     /* Gophor */
-    GophorVersion = "0.1-alpha"
+    GophorVersion = "0.2-alpha"
 
     /* Parsing */
     DOSLineEnd = "\r\n"
@@ -43,48 +43,47 @@ const (
 type ItemType byte
 const (
     /* RFC 1436 Standard */
-    TypeFile          = ItemType('0') /* Regular file [TEXT] */
-    TypeDirectory     = ItemType('1') /* Directory [MENU] */
-    TypePhonebook     = ItemType('2') /* CSO phone-book server */
-    TypeError         = ItemType('3') /* Error [ERROR] */
-    TypeMacBinHex     = ItemType('4') /* Binhexed macintosh file */
-    TypeDosBinArchive = ItemType('5') /* DOS bin archive, CLIENT MUST READ UNTIL TCP CLOSE [GZIP] */
-    TypeUnixFile      = ItemType('6') /* Unix uuencoded file */
-    TypeIndexSearch   = ItemType('7') /* Index-search server [QUERY] */
-    TypeTelnet        = ItemType('8') /* Text-based telnet session */
-    TypeBin           = ItemType('9') /* Binary file, CLIENT MUST READ UNTIL TCP CLOSE [BINARY] */
-    TypeTn3270        = ItemType('T') /* Text-based tn3270 session */
-    TypeGif           = ItemType('g') /* Gif format graphics file [GIF] */
-    TypeImage         = ItemType('I') /* Some kind of image file (client decides how to display) [IMAGE] */
+    TypeFile          = ItemType('0') /* Regular file (text) */
+    TypeDirectory     = ItemType('1') /* Directory (menu) */
+    TypeDatabase      = ItemType('2') /* CCSO flat db; other db */
+    TypeError         = ItemType('3') /* Error message */
+    TypeMacBinHex     = ItemType('4') /* Macintosh BinHex file */
+    TypeBinArchive    = ItemType('5') /* Binary archive (zip, rar, 7zip, tar, gzip, etc), CLIENT MUST READ UNTIL TCP CLOSE */
+    TypeUUEncoded     = ItemType('6') /* UUEncoded archive */
+    TypeSearch        = ItemType('7') /* Query search engine or CGI script */
+    TypeTelnet        = ItemType('8') /* Telnet to: VT100 series server */
+    TypeBin           = ItemType('9') /* Binary file (see also, 5), CLIENT MUST READ UNTIL TCP CLOSE */
+    TypeTn3270        = ItemType('T') /* Telnet to: tn3270 series server */
+    TypeGif           = ItemType('g') /* GIF format image file (just use I) */
+    TypeImage         = ItemType('I') /* Any format image file */
+    TypeRedundant     = ItemType('+') /* Redundant (indicates mirror of previous item) */
 
-    TypeRedundant     = ItemType('+') /* Redundant server */
+    /* GopherII Standard */
+    TypeCalendar      = ItemType('c') /* Calendar file */
+    TypeDoc           = ItemType('d') /* Word-processing document; PDF document */
+    TypeHtml          = ItemType('h') /* HTML document */
+    TypeInfo          = ItemType('i') /* Informational text (not selectable) */
+    TypeMarkup        = ItemType('p') /* Page layout or markup document (plain text w/ ASCII tags) */
+    TypeMail          = ItemType('M') /* Email repository (MBOX) */
+    TypeAudio         = ItemType('s') /* Audio recordings */
+    TypeXml           = ItemType('x') /* eXtensible Markup Language document */
+    TypeVideo         = ItemType(';') /* Video files */
 
-    TypeEnd           = ItemType('.') /* Indicates LastLine if only this + CrLf */
+    /* Commonly Used */
+    TypeTitle         = ItemType('!') /* [SERVER ONLY] Menu title (set title ONCE per gophermap) */
+    TypeComment       = ItemType('#') /* [SERVER ONLY] Comment, rest of line is ignored */
+    TypeHiddenFile    = ItemType('-') /* [SERVER ONLY] Hide file/directory from directory listing */
+    TypeEnd           = ItemType('.') /* [SERVER ONLY] Last line -- stop processing gophermap default */
+    TypeSubGophermap  = ItemType('=') /* [SERVER ONLY] Include subgophermap / regular file here. */
+    TypeEndBeginList  = ItemType('*') /* [SERVER ONLY] Last line + directory listing -- stop processing gophermap and end on a directory listing */
 
-    /* Non-standard - as used by https://github.com/prologic/go-gopher
-     * (also seen on Wikipedia: https://en.wikipedia.org/wiki/Gopher_%28protocol%29#Item_types)
-     */
-    TypeInfo          = ItemType('i') /* Informational message [INFO] */
-    TypeHtml          = ItemType('h') /* HTML document [HTML] */
-    TypeAudio         = ItemType('s') /* Audio file */
-    TypePng           = ItemType('p') /* PNG image */
-    TypeDoc           = ItemType('d') /* Document [DOC] */
-
-    /* Non-standard - as used by Gopernicus https://github.com/gophernicus/gophernicus */
-    TypeMime          = ItemType('M') /* [MIME] */
-    TypeVideo         = ItemType(';') /* [VIDEO] */
-    TypeCalendar      = ItemType('c') /* [CALENDAR] */
-    TypeTitle         = ItemType('!') /* [TITLE] */
-    TypeComment       = ItemType('#') /* [COMMENT] */
-    TypeHiddenFile    = ItemType('-') /* [HIDDEN] Hides file from directory listing */
-    TypeSubGophermap  = ItemType('=') /* [EXECUTE] read this file in here */
-    TypeEndBeginList  = ItemType('*') /* If only this + CrLf, indicates last line but then followed by directory list */
+    /* Planned To Be Supported */
+    TypeExec          = ItemType('$') /* [SERVER ONLY] Execute shell command and print stdout here */
 
     /* Default type */
     TypeDefault       = TypeBin
 
     /* Gophor specific types */
-    TypeExec          = ItemType('$') /* Execute command and insert stdout here */
-    TypeInfoNotStated = ItemType('z') /* INTERNAL USE. We use this in a switch case, a line never starts with this */
-    TypeUnknown       = ItemType('?') /* INTERNAL USE. We use this in a switch case, a line never starts with this */
+    TypeInfoNotStated = ItemType('z') /* [INTERNAL USE] */
+    TypeUnknown       = ItemType('?') /* [INTERNAL USE] */
 )

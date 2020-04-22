@@ -244,7 +244,9 @@ func sanitizePath(dataStr string) string {
     /* Clean path and trim '/' prefix if still exists */
     requestPath := strings.TrimPrefix(path.Clean(dataStr), "/")
 
-    if !strings.HasPrefix(requestPath, "/") {
+    if requestPath == "." {
+        requestPath = "/"
+    } else if !strings.HasPrefix(requestPath, "/") {
         requestPath = "/" + requestPath
     }
 

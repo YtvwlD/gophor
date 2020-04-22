@@ -197,61 +197,62 @@ func unixLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, er
  * single call.
  */
 var listDir func(dirPath string, hidden map[string]bool) ([]byte, *GophorError)
+
 func _listDir(dirPath string, hidden map[string]bool) ([]byte, *GophorError) {
-    /* Open directory file descriptor */
-    fd, err := os.Open(dirPath)
-    if err != nil {
-        logSystemError("failed to open %s: %s\n", dirPath, err.Error())
-        return nil, &GophorError{ FileOpenErr, err }
-    }
-
-    /* Read files in directory */
-    files, err := fd.Readdir(-1)
-    if err != nil {
-        logSystemError("failed to enumerate dir %s: %s\n", dirPath, err.Error())
-        return nil, &GophorError{ DirListErr, err }
-    }
-
-    /* Sort the files by name */
-    sort.Sort(byName(files))
-
-    /* Create directory content slice, ready */
-    dirContents := make([]byte, 0)
-
-    /* First add a 'back' entry. GoLang Readdir() seems to miss this */
-    line := buildLine(TypeDirectory, "..", path.Join(fd.Name(), ".."), *ServerHostname, *ServerPort)
-    dirContents = append(dirContents, line...)
-
-    /* Walk through files :D */
-    for _, file := range files {
+    return _listDirBase(dirPath, func(dirContents *[]byte, file os.FileInfo) {
         /* If requested hidden */
         if _, ok := hidden[file.Name()]; ok {
-            continue
+            return
         }
 
         /* Handle file, directory or ignore others */
         switch {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
-                itemPath := path.Join(fd.Name(), file.Name())
-                line = buildLine(TypeDirectory, file.Name(), itemPath, *ServerHostname, *ServerPort)
-                dirContents = append(dirContents, line...)
+                itemPath := path.Join(dirPath, file.Name())
+                *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, *ServerHostname, *ServerPort)...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
-                itemPath := path.Join(fd.Name(), file.Name())
+                itemPath := path.Join(dirPath, file.Name())
                 itemType := getItemType(itemPath)
-                line = buildLine(itemType, file.Name(), itemPath, *ServerHostname, *ServerPort)
-                dirContents = append(dirContents, line...)
+                *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, *ServerHostname, *ServerPort)...)
 
             default:
                 /* Ignore */
         }
-    }
-
-    return dirContents, nil
+    })
 }
+
 func _listDirRegexMatch(dirPath string, hidden map[string]bool) ([]byte, *GophorError) {
+    return _listDirBase(dirPath, func(dirContents *[]byte, file os.FileInfo) {
+        /* If regex match in restricted files || requested hidden */
+        if isRestrictedFile(file.Name()) {
+            return
+        } else if _, ok := hidden[file.Name()]; ok {
+            return
+        }
+
+        /* Handle file, directory or ignore others */
+        switch {
+            case file.Mode() & os.ModeDir != 0:
+                /* Directory -- create directory listing */
+                itemPath := path.Join(dirPath, file.Name())
+                *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, *ServerHostname, *ServerPort)...)
+
+            case file.Mode() & os.ModeType == 0:
+                /* Regular file -- find item type and creating listing */
+                itemPath := path.Join(dirPath, file.Name())
+                itemType := getItemType(itemPath)
+                *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, *ServerHostname, *ServerPort)...)
+
+            default:
+                /* Ignore */
+        }
+    })
+}
+
+func _listDirBase(dirPath string, iterFunc func(dirContents *[]byte, file os.FileInfo)) ([]byte, *GophorError) {
     /* Open directory file descriptor */
     fd, err := os.Open(dirPath)
     if err != nil {
@@ -272,38 +273,14 @@ func _listDirRegexMatch(dirPath string, hidden map[string]bool) ([]byte, *Gophor
     /* Create directory content slice, ready */
     dirContents := make([]byte, 0)
 
-    /* First add a 'back' entry. GoLang Readdir() seems to miss this */
-    line := buildLine(TypeDirectory, "..", path.Join(fd.Name(), ".."), *ServerHostname, *ServerPort)
-    dirContents = append(dirContents, line...)
+    /* First add a title */
+    dirContents = append(dirContents, buildLine(TypeInfo, "[ "+*ServerHostname+dirPath+" ]", "TITLE", NullHost, NullPort)...)
+
+    /* Add a 'back' entry. GoLang Readdir() seems to miss this */
+    dirContents = append(dirContents, buildLine(TypeDirectory, "..", path.Join(fd.Name(), ".."), *ServerHostname, *ServerPort)...)
 
     /* Walk through files :D */
-    for _, file := range files {
-        /* If regex match in restricted files || requested hidden */
-        if isRestrictedFile(file.Name()) {
-            continue
-        } else if _, ok := hidden[file.Name()]; ok {
-            continue
-        }
-
-        /* Handle file, directory or ignore others */
-        switch {
-            case file.Mode() & os.ModeDir != 0:
-                /* Directory -- create directory listing */
-                itemPath := path.Join(fd.Name(), file.Name())
-                line = buildLine(TypeDirectory, file.Name(), itemPath, *ServerHostname, *ServerPort)
-                dirContents = append(dirContents, line...)
-
-            case file.Mode() & os.ModeType == 0:
-                /* Regular file -- find item type and creating listing */
-                itemPath := path.Join(fd.Name(), file.Name())
-                itemType := getItemType(itemPath)
-                line = buildLine(itemType, file.Name(), itemPath, *ServerHostname, *ServerPort)
-                dirContents = append(dirContents, line...)
-
-            default:
-                /* Ignore */
-        }
-    }
+    for _, file := range files { iterFunc(&dirContents, file) }
 
     return dirContents, nil
 }
