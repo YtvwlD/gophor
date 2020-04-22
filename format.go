@@ -1,7 +1,6 @@
 package main
 
 import (
-    "strconv"
     "strings"
 )
 
@@ -71,12 +70,12 @@ func buildError(selector string) []byte {
     return []byte(ret)
 }
 
-func buildLine(t ItemType, name, selector, host string, port int) []byte {
+func buildLine(t ItemType, name, selector, host string, port string) []byte {
     ret := string(t)
 
     /* Add name, truncate name if too long */    
-    if len(name) > *PageWidth {
-        ret += name[:*PageWidth-4]+"...\t"
+    if len(name) > Config.PageWidth {
+        ret += name[:Config.PageWidth-4]+"...\t"
     } else {
         ret += name+"\t"
     }
@@ -90,7 +89,7 @@ func buildLine(t ItemType, name, selector, host string, port int) []byte {
     }
 
     /* Add host + port */
-    ret += host+"\t"+strconv.Itoa(port)+DOSLineEnd
+    ret += host+"\t"+port+DOSLineEnd
 
     return []byte(ret)
 }

@@ -7,23 +7,24 @@ import (
     "io/ioutil"
 )
 
-var (
-    systemLogger *log.Logger
-    accessLogger *log.Logger
-)
+func setupLogging(loggingType int, systemLogPath, accessLogPath string) (*log.Logger, *log.Logger) {
+    /* Setup global logger */
+    log.SetOutput(os.Stderr)
+    log.SetFlags(0)
 
-func loggingSetup() {
-    useSame     := (*SystemLog == *AccessLog)
+    /* Calculate now, because, *shrug* */
+    useSame := (systemLogPath == accessLogPath)
 
     /* Check requested logging type */
-    switch *LoggingType {
+    var systemLogger, accessLogger *log.Logger
+    switch loggingType {
         case 0:
             /* Default */
 
             /* Setup system logger to output to file, or stderr if none supplied */
             var systemWriter io.Writer
-            if *SystemLog != "" {
-                fd, err := os.OpenFile(*SystemLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+            if systemLogPath != "" {
+                fd, err := os.OpenFile(systemLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
                 if err != nil {
                     log.Fatalf("Failed to create system logger: %s\n", err.Error())
                 }
@@ -36,13 +37,12 @@ func loggingSetup() {
             /* If both output to same, may as well use same logger for both */
             if useSame {
                 accessLogger = systemLogger
-                return
             }
 
             /* Setup access logger to output to file, or stderr if none supplied */
             var accessWriter io.Writer
-            if *AccessLog != "" {
-                fd, err := os.OpenFile(*AccessLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+            if accessLogPath != "" {
+                fd, err := os.OpenFile(accessLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
                 if err != nil {
                     log.Fatalf("Failed to create access logger: %s\n", err.Error())
                 }
@@ -56,29 +56,10 @@ func loggingSetup() {
             /* Disable -- pipe logs to "discard". May as well use same for both */
             systemLogger = log.New(ioutil.Discard, "", 0)
             accessLogger = systemLogger
-            return
 
         default:
-            log.Fatalf("Unrecognized logging type: %d\n", *LoggingType)
+            log.Fatalf("Unrecognized logging type: %d\n", loggingType)
     }
-}
 
-func logSystem(fmt string, args ...interface{}) {
-    systemLogger.Printf(":: I :: "+fmt, args...)
-}
-
-func logSystemError(fmt string, args ...interface{}) {
-    systemLogger.Printf(":: E :: "+fmt, args...)
-}
-
-func logSystemFatal(fmt string, args ...interface{}) {
-    systemLogger.Fatalf(":: F :: "+fmt, args...)
-}
-
-func logAccess(fmt string, args ...interface{}) {
-    accessLogger.Printf(":: I :: "+fmt, args...)
-}
-
-func logAccessError(fmt string, args ...interface{}) {
-    accessLogger.Printf(":: E :: "+fmt, args...)
+    return systemLogger, accessLogger
 }

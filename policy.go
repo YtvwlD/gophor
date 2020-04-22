@@ -18,11 +18,11 @@ func generateCapsTxt() []byte {
     text += DOSLineEnd
     text += "ServerSoftware=Gophor"+DOSLineEnd
     text += "ServerSoftwareVersion="+GophorVersion+DOSLineEnd
-    text += "ServerDescription="+*ServerDescription+DOSLineEnd
-    text += "ServerGeolocationString="+*ServerGeoloc+DOSLineEnd
+    text += "ServerDescription="+Config.Description+DOSLineEnd
+    text += "ServerGeolocationString="+Config.Geolocation+DOSLineEnd
     text += "ServerDefaultEncoding=ascii"+DOSLineEnd
     text += DOSLineEnd
-    text += "ServerAdmin="+*ServerAdmin+DOSLineEnd
+    text += "ServerAdmin="+Config.AdminEmail+DOSLineEnd
     return []byte(text)
 }
 

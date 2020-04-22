@@ -17,7 +17,7 @@ const (
 
     NullSelector = "-"
     NullHost = "null.host"
-    NullPort = 0
+    NullPort = "0"
 
     SelectorErrorStr = "selector_length_error"
     GophermapRenderErrorStr = ""

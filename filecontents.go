@@ -180,7 +180,7 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
                         fileContents, gophorErr := readIntoGophermap(line[1:])
                         if gophorErr != nil {
                             /* Failed to read file, insert error line */
-                            logSystem("Error: %s\n", gophorErr)
+                            Config.LogSystem("Error: %s\n", gophorErr)
                             sections = append(sections, NewGophermapText(buildInfoLine("Error reading subgophermap: "+line[1:])))
                         } else {
                             sections = append(sections, NewGophermapText(fileContents))
@@ -205,7 +205,7 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
 
                 default:
                     /* Replace pre-set strings */
-                    line = strings.Replace(line, ReplaceStrHostname, *ServerHostname, -1)
+                    line = strings.Replace(line, ReplaceStrHostname, Config.Hostname, -1)
                     sections = append(sections, NewGophermapText([]byte(line+DOSLineEnd)))
             }
             
@@ -274,9 +274,9 @@ func readIntoGophermap(path string) ([]byte, *GophorError) {
 }
 
 func minWidth(w int) int {
-    if w <= *PageWidth {
+    if w <= Config.PageWidth {
         return w
     } else {
-        return *PageWidth
+        return Config.PageWidth
     }
 }

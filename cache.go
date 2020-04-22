@@ -6,26 +6,6 @@ import (
     "time"
 )
 
-var (
-    /* Global file caches */
-    GlobalFileCache *FileCache
-)
-
-func startFileCaching() {
-    /* Create gophermap file cache */
-    GlobalFileCache = new(FileCache)
-    GlobalFileCache.Init(*CacheSize)
-
-    /* Parse the supplied CacheCheckFreq */
-    sleepTime, err := time.ParseDuration(*CacheCheckFreq)
-    if err != nil {
-        logSystemFatal("Error parsing supplied cache check frequency %s: %s\n", *CacheCheckFreq, err)
-    }
-
-    /* Start file monitor in separate goroutine */
-    go startFileMonitor(sleepTime)
-}
-
 func startFileMonitor(sleepTime time.Duration) {
     go func() {
         for {
@@ -37,27 +17,27 @@ func startFileMonitor(sleepTime time.Duration) {
         }
 
         /* We shouldn't have reached here */
-        logSystemFatal("FileCache monitor escaped run loop!\n")
+        Config.LogSystemFatal("FileCache monitor escaped run loop!\n")
     }()
 }
 
 func checkCacheFreshness() {
     /* Before anything, get cache write lock (in case we have to delete) */
-    GlobalFileCache.CacheMutex.Lock()
+    Config.FileCache.CacheMutex.Lock()
 
     /* Iterate through paths in cache map to query file last modified times */
-    for path := range GlobalFileCache.CacheMap.Map {
+    for path := range Config.FileCache.CacheMap.Map {
         stat, err := os.Stat(path)
         if err != nil {
             /* Log file as not in cache, then delete */
-            logSystemError("Failed to stat file in cache: %s\n", path)
-            GlobalFileCache.CacheMap.Remove(path)
+            Config.LogSystemError("Failed to stat file in cache: %s\n", path)
+            Config.FileCache.CacheMap.Remove(path)
             continue
         }
         timeModified := stat.ModTime().UnixNano()
 
         /* Get file pointer, no need for lock as we have write lock */
-        file := GlobalFileCache.CacheMap.Get(path)
+        file := Config.FileCache.CacheMap.Get(path)
 
         /* If the file is marked as fresh, but file on disk newer, mark as unfresh */
         if file.IsFresh() && file.LastRefresh() < timeModified {
@@ -66,18 +46,20 @@ func checkCacheFreshness() {
     }
 
     /* Done! We can release cache read lock */
-    GlobalFileCache.CacheMutex.Unlock()
+    Config.FileCache.CacheMutex.Unlock()
 }
 
 /* TODO: see if there is more efficienct setup */
 type FileCache struct {
-    CacheMap   *FixedMap
-    CacheMutex sync.RWMutex
+    CacheMap    *FixedMap
+    CacheMutex  sync.RWMutex
+    FileSizeMax int64
 }
 
-func (fc *FileCache) Init(size int) {
-    fc.CacheMap = NewFixedMap(size)
-    fc.CacheMutex = sync.RWMutex{}
+func (fc *FileCache) Init(size int, fileSizeMax float64) {
+    fc.CacheMap    = NewFixedMap(size)
+    fc.CacheMutex  = sync.RWMutex{}
+    fc.FileSizeMax = int64(BytesInMegaByte * fileSizeMax)
 }
 
 func (fc *FileCache) FetchRegular(path string) ([]byte, *GophorError) {
@@ -153,7 +135,7 @@ func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContent
         /* Compare file size (in MB) to CacheFileSizeMax, if larger just get file
          * contents, unlock all mutex and don't bother caching. 
          */
-        if float64(stat.Size()) / BytesInMegaByte > *CacheFileSizeMax {
+        if stat.Size() > fc.FileSizeMax {
             b := file.Contents()
             fc.CacheMutex.RUnlock()
             return b, nil

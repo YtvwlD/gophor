@@ -56,7 +56,7 @@ func (fm *FixedMap) Put(key string, value *File) {
         delete(fm.Map, key)
         fm.List.Remove(element)
 
-        logSystem("Popped key: %s\n", key)
+        Config.LogSystem("Popped key: %s\n", key)
     }
 }
 

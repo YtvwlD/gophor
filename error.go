@@ -166,7 +166,7 @@ func (e ErrorResponseCode) String() string {
             return "503 Service Unavailable"
         default:
             /* Should not have reached here */
-            logSystemFatal("Unhandled ErrorResponseCode type\n")
+            Config.LogSystemFatal("Unhandled ErrorResponseCode type\n")
             return ""
     }
 }
