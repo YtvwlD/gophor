@@ -5,53 +5,64 @@ import (
     "strings"
 )
 
-var SingleFileExtMap = map[string]ItemType{
-    ".out":   TypeBin,
-    ".a":     TypeBin,
-    ".o":     TypeBin,
-    ".ko":    TypeBin, /* ... Though tbh, kernel extensions?!!! */
-    ".msi":   TypeBin,
-    ".exe":   TypeBin,
+var FileExtMap = map[string]ItemType{
+    ".out":       TypeBin,
+    ".a":         TypeBin,
+    ".o":         TypeBin,
+    ".ko":        TypeBin, /* ... Though tbh, kernel extensions?!!! */
+    ".msi":       TypeBin,
+    ".exe":       TypeBin,
 
-    ".txt":   TypeFile,
-    ".md":    TypeFile,
-    ".json":  TypeFile,
-    ".xml":   TypeFile,
-    ".yaml":  TypeFile,
-    ".ocaml": TypeFile,
-    ".s":     TypeFile,
-    ".c":     TypeFile,
-    ".py":    TypeFile,
-    ".h":     TypeFile,
-    ".go":    TypeFile,
-    ".fs":    TypeFile,
+    ".lz":        TypeBinArchive,
+    ".gz":        TypeBinArchive,
+    ".bz2":       TypeBinArchive,
+    ".7z":        TypeBinArchive,
+    ".zip":       TypeBinArchive,
 
-    ".doc":   TypeDoc,
-    ".docx":  TypeDoc,
+    ".gitignore": TypeFile,
+    ".txt":       TypeFile,
+    ".json":      TypeFile,
+    ".yaml":      TypeFile,
+    ".ocaml":     TypeFile,
+    ".s":         TypeFile,
+    ".c":         TypeFile,
+    ".py":        TypeFile,
+    ".h":         TypeFile,
+    ".go":        TypeFile,
+    ".fs":        TypeFile,
+    ".odin":      TypeFile,
 
-    ".gif":   TypeGif,
+    ".md":        TypeMarkup,
 
-    ".jpg":   TypeImage,
-    ".jpeg":  TypeImage,
-    ".png":   TypeImage,
+    ".xml":       TypeXml,
 
-    ".html":  TypeHtml,
+    ".doc":       TypeDoc,
+    ".docx":      TypeDoc,
+    ".pdf":       TypeDoc,
 
-    ".ogg":   TypeAudio,
-    ".mp3":   TypeAudio,
-    ".wav":   TypeAudio,
-    ".mod":   TypeAudio,
-    ".it":    TypeAudio,
-    ".xm":    TypeAudio,
-    ".mid":   TypeAudio,
-    ".vgm":   TypeAudio,
+    ".jpg":       TypeImage,
+    ".jpeg":      TypeImage,
+    ".png":       TypeImage,
+    ".gif":       TypeImage,
 
-    ".mp4":   TypeVideo,
-    ".mkv":   TypeVideo,
-}
+    ".html":      TypeHtml,
+    ".htm":       TypeHtml,
 
-var DoubleFileExtMap = map[string]ItemType{
-    ".tar.gz": TypeBin,
+    ".ogg":       TypeAudio,
+    ".mp3":       TypeAudio,
+    ".wav":       TypeAudio,
+    ".mod":       TypeAudio,
+    ".it":        TypeAudio,
+    ".xm":        TypeAudio,
+    ".mid":       TypeAudio,
+    ".vgm":       TypeAudio,
+    ".opus":      TypeAudio,
+    ".m4a":       TypeAudio,
+    ".aac":       TypeAudio,
+
+    ".mp4":       TypeVideo,
+    ".mkv":       TypeVideo,
+    ".webm":      TypeVideo,
 }
 
 func buildError(selector string) []byte {
@@ -95,39 +106,19 @@ func buildInfoLine(content string) []byte {
  * single call.
  */
 func getItemType(name string) ItemType {
-    /* Name MUST be lower */
-    nameLower := strings.ToLower(name)
+    /* Split, name MUST be lower */
+    split := strings.Split(strings.ToLower(name), ".")
 
     /* First we look at how many '.' in name string */
-    switch strings.Count(nameLower, ".") {
+    splitLen := len(split)
+    switch splitLen {
         case 0:
             /* Always return TypeDefault. We can never tell */
             return TypeDefault
 
-        case 1:
-            /* Get index of ".", try look in SingleFileExtMap */
-            i := strings.IndexByte(nameLower, '.')
-            fileType, ok := SingleFileExtMap[nameLower[i:]]
-            if ok {
-                return fileType
-            } else {
-                return TypeDefault
-            }
-
         default:
-            /* Get index of penultimate ".", try look in DoubleFileExtMap */
-            i, j := len(nameLower)-1, 0
-            for i >= 0 {
-                if nameLower[i] == '.' {
-                    if j == 1 {
-                        break
-                    } else {
-                        j += 1
-                    }
-                }
-                i -= 1
-            }
-            fileType, ok := DoubleFileExtMap[nameLower[i:]]
+            /* Get index of str after last ".", look in FileExtMap */
+            fileType, ok := FileExtMap["."+split[splitLen-1]]
             if ok {
                 return fileType
             } else {
