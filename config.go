@@ -10,6 +10,7 @@ type ServerConfig struct {
     RootDir         string
     Hostname        string
     Port            string
+    TlsPort         string
 
     /* Caps.txt information */
     Description     string

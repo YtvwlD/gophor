@@ -2,53 +2,30 @@ package main
 
 import (
     "net"
-    "crypto/tls"
-    "crypto/rand"
 )
+
+/* Data structure to hold specific host details
+ * for passing on later
+ */
+type ConnHost struct {
+    Name string
+    Port string
+}
 
 /* Simple wrapper to Listener that generates
  * GophorConn instances on each accept
  */
 type GophorListener struct {
     Listener net.Listener
-    Hostname string
-    Port     string
+    Host     ConnHost
 }
 
 func BeginGophorListen(bindAddr, hostname, port string) (*GophorListener, error) {
     gophorListener := new(GophorListener)
-    gophorListener.Hostname = hostname
-    gophorListener.Port = port
+    gophorListener.Host = ConnHost{ hostname, port }
 
     var err error
     gophorListener.Listener, err = net.Listen("tcp", bindAddr+":"+port)
-    if err != nil {
-        return nil, err
-    } else {
-        return gophorListener, nil
-    }
-}
-
-func BeginGophorTlsListen(bindAddr, hostname, port, certFile, keyFile string) (*GophorListener, error) {
-    gophorListener := new(GophorListener)
-    gophorListener.Hostname = hostname
-    gophorListener.Port = port
-
-    /* Try load the key pair */
-    cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-    if err != nil {
-        return nil, err
-    }
-
-    /* Setup TLS configuration */
-    config := &tls.Config{
-        Certificates: []tls.Certificate{ cert },
-    }
-
-    /* Use a more cryptographically safe rand source */
-    config.Rand = rand.Reader
-
-    gophorListener.Listener, err = tls.Listen("tcp", bindAddr+":"+port, config)
     if err != nil {
         return nil, err
     } else {
@@ -64,8 +41,7 @@ func (l *GophorListener) Accept() (*GophorConn, error) {
 
     gophorConn := new(GophorConn)
     gophorConn.Conn = conn
-    gophorConn.Hostname = l.Hostname
-    gophorConn.Port = l.Port
+    gophorConn.Host = l.Host
     return gophorConn, nil
 }
 
@@ -78,8 +54,7 @@ func (l *GophorListener) Addr() net.Addr {
  */
 type GophorConn struct {
     Conn     net.Conn
-    Hostname string
-    Port     string
+    Host     ConnHost
 }
 
 func (c *GophorConn) Read(b []byte) (int, error) {

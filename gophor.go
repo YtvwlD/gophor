@@ -142,18 +142,15 @@ func setupServer() []*GophorListener {
     /* Setup listeners */
     listeners := make([]*GophorListener, 0)
 
-    /* If provided unencrypted port, setup listener! */
-    if Config.Port == NullPort {
-        Config.LogSystemFatal("%s is not a valid port to bind to!\n", NullPort)
+    /* If requested, setup unencrypted listener */
+    if Config.Port != NullPort {
+        l, err := BeginGophorListen(*serverBindAddr, *serverHostname, Config.Port)
+        if err != nil {
+            Config.LogSystemFatal("Error setting up (unencrypted) listener on %s: %s\n", *serverBindAddr+":"+Config.Port, err.Error())
+        }
+        Config.LogSystem("Listening (unencrypted): gopher://%s\n", l.Addr())
+        listeners = append(listeners, l)
     }
-
-    /* Start the listener (open socket bound to *serverPort) */
-    l, err := BeginGophorListen(*serverBindAddr, *serverHostname, Config.Port)
-    if err != nil {
-        Config.LogSystemFatal("Error setting up listener on %s: %s\n", *serverBindAddr+":"+Config.Port, err.Error())
-    }
-    Config.LogSystem("Listening (unencrypted): gopher://%s\n", l.Addr())
-    listeners = append(listeners, l)
 
     /* Drop privileges to retrieved UID + GID */
     setPrivileges(uid, gid)

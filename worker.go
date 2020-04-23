@@ -48,7 +48,7 @@ func (worker *Worker) Serve() {
             /* Buffered read from listener */
             count, err = worker.Conn.Read(buf)
             if err != nil {
-                Config.LogSystemError("Error reading from socket %s: %s\n", worker.Conn, err.Error())
+                Config.LogSystemError("Error reading from socket on port %s: %s\n", worker.Conn.Host.Port, err.Error())
                 return
             }
 
@@ -173,10 +173,10 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
         case FileTypeDir:
             /* First try to serve gopher map */
             gophermapPath := path.Join(requestPath, "/"+GophermapFileStr)
-            fileContents, gophorErr := Config.FileCache.FetchGophermap(gophermapPath)
+            fileContents, gophorErr := Config.FileCache.FetchGophermap(gophermapPath, worker.Conn.Host)
             if gophorErr != nil {
                 /* Get directory listing instead */
-                fileContents, gophorErr = listDir(requestPath, map[string]bool{})
+                fileContents, gophorErr = listDir(requestPath, map[string]bool{}, worker.Conn.Host)
                 if gophorErr != nil {
                     return gophorErr
                 }
@@ -196,7 +196,7 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
         /* Regular file */
         case FileTypeRegular:
             /* Read file contents */
-            fileContents, gophorErr := Config.FileCache.FetchRegular(requestPath)
+            fileContents, gophorErr := Config.FileCache.FetchRegular(requestPath, worker.Conn.Host)
             if gophorErr != nil {
                 return gophorErr
             }

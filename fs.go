@@ -32,8 +32,8 @@ func NewFile(contents FileContents) *File {
     return f
 }
 
-func (f *File) Contents() []byte {
-    return f.contents.Render()
+func (f *File) Contents(connHost ConnHost) []byte {
+    return f.contents.Render(connHost)
 }
 
 func (f *File) LoadContents() *GophorError {
@@ -89,8 +89,8 @@ func (f *File) RUnlock() {
  * are requested.
  */
 type FileContents interface {
-    Render() []byte
-    Load()   *GophorError
+    Render(ConnHost) []byte
+    Load()           *GophorError
     Clear()
 }
 
@@ -196,10 +196,10 @@ func unixLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, er
  * This negates need to check if RestrictedFilesRegex is nil every
  * single call.
  */
-var listDir func(dirPath string, hidden map[string]bool) ([]byte, *GophorError)
+var listDir func(dirPath string, hidden map[string]bool, connHost ConnHost) ([]byte, *GophorError)
 
-func _listDir(dirPath string, hidden map[string]bool) ([]byte, *GophorError) {
-    return _listDirBase(dirPath, func(dirContents *[]byte, file os.FileInfo) {
+func _listDir(dirPath string, hidden map[string]bool, connHost ConnHost) ([]byte, *GophorError) {
+    return _listDirBase(dirPath, func(dirContents *[]byte, file os.FileInfo, host ConnHost) {
         /* If requested hidden */
         if _, ok := hidden[file.Name()]; ok {
             return
@@ -210,22 +210,22 @@ func _listDir(dirPath string, hidden map[string]bool) ([]byte, *GophorError) {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
                 itemPath := path.Join(dirPath, file.Name())
-                *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, Config.Hostname, Config.Port)...)
+                *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, connHost.Name, connHost.Port)...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
                 itemPath := path.Join(dirPath, file.Name())
                 itemType := getItemType(itemPath)
-                *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, Config.Hostname, Config.Port)...)
+                *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, connHost.Name, connHost.Port)...)
 
             default:
                 /* Ignore */
         }
-    })
+    }, connHost)
 }
 
-func _listDirRegexMatch(dirPath string, hidden map[string]bool) ([]byte, *GophorError) {
-    return _listDirBase(dirPath, func(dirContents *[]byte, file os.FileInfo) {
+func _listDirRegexMatch(dirPath string, hidden map[string]bool, connHost ConnHost) ([]byte, *GophorError) {
+    return _listDirBase(dirPath, func(dirContents *[]byte, file os.FileInfo, host ConnHost) {
         /* If regex match in restricted files || requested hidden */
         if isRestrictedFile(file.Name()) {
             return
@@ -238,21 +238,21 @@ func _listDirRegexMatch(dirPath string, hidden map[string]bool) ([]byte, *Gophor
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
                 itemPath := path.Join(dirPath, file.Name())
-                *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, Config.Hostname, Config.Port)...)
+                *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, host.Name, host.Port)...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
                 itemPath := path.Join(dirPath, file.Name())
                 itemType := getItemType(itemPath)
-                *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, Config.Hostname, Config.Port)...)
+                *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, host.Name, host.Port)...)
 
             default:
                 /* Ignore */
         }
-    })
+    }, connHost)
 }
 
-func _listDirBase(dirPath string, iterFunc func(dirContents *[]byte, file os.FileInfo)) ([]byte, *GophorError) {
+func _listDirBase(dirPath string, iterFunc func(dirContents *[]byte, file os.FileInfo, connHost ConnHost), connHost ConnHost) ([]byte, *GophorError) {
     /* Open directory file descriptor */
     fd, err := os.Open(dirPath)
     if err != nil {
@@ -281,7 +281,7 @@ func _listDirBase(dirPath string, iterFunc func(dirContents *[]byte, file os.Fil
     dirContents = append(dirContents, buildLine(TypeDirectory, "..", path.Join(fd.Name(), ".."), Config.Hostname, Config.Port)...)
 
     /* Walk through files :D */
-    for _, file := range files { iterFunc(&dirContents, file) }
+    for _, file := range files { iterFunc(&dirContents, file, connHost) }
 
     return dirContents, nil
 }

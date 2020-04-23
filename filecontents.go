@@ -16,7 +16,7 @@ type RegularFileContents struct {
     contents []byte
 }
 
-func (fc *RegularFileContents) Render() []byte {
+func (fc *RegularFileContents) Render(connHost ConnHost) []byte {
     return fc.contents
 }
 
@@ -41,13 +41,13 @@ type GophermapContents struct {
     sections []GophermapSection
 }
 
-func (gc *GophermapContents) Render() []byte {
+func (gc *GophermapContents) Render(connHost ConnHost) []byte {
     /* We don't just want to read the contents, but also
      * execute any included gophermap execute lines
      */
     returnContents := make([]byte, 0)
     for _, line := range gc.sections {
-        content, gophorErr := line.Render()
+        content, gophorErr := line.Render(connHost)
         if gophorErr != nil {
             content = buildInfoLine(GophermapRenderErrorStr)
         }
@@ -75,7 +75,7 @@ func (gc *GophermapContents) Clear() {
  * upon each file cache request.
  */
 type GophermapSection interface {
-    Render() ([]byte, *GophorError)
+    Render(ConnHost) ([]byte, *GophorError)
 }
 
 /* GophermapText:
@@ -92,8 +92,8 @@ func NewGophermapText(contents []byte) *GophermapText {
     return s
 }
 
-func (s *GophermapText) Render() ([]byte, *GophorError) {
-    return s.contents, nil
+func (s *GophermapText) Render(connHost ConnHost) ([]byte, *GophorError) {
+    return replaceStrings(string(s.contents), connHost), nil
 }
 
 /* GophermapDirListing:
@@ -113,8 +113,8 @@ func NewGophermapDirListing(path string) *GophermapDirListing {
     return s
 }
 
-func (s *GophermapDirListing) Render() ([]byte, *GophorError) {
-    return listDir(s.path, s.Hidden)
+func (s *GophermapDirListing) Render(connHost ConnHost) ([]byte, *GophorError) {
+    return listDir(s.path, s.Hidden, connHost)
 }
 
 func readGophermap(path string) ([]GophermapSection, *GophorError) {
@@ -206,6 +206,7 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
                 default:
                     /* Replace pre-set strings */
                     line = strings.Replace(line, ReplaceStrHostname, Config.Hostname, -1)
+                    line = strings.Replace(line, ReplaceStrPort, Config.Port, -1)
                     sections = append(sections, NewGophermapText([]byte(line+DOSLineEnd)))
             }
             
@@ -279,4 +280,10 @@ func minWidth(w int) int {
     } else {
         return Config.PageWidth
     }
+}
+
+func replaceStrings(str string, connHost ConnHost) []byte {
+    str = strings.Replace(str, ReplaceStrHostname, connHost.Name, -1)
+    str = strings.Replace(str, ReplaceStrPort, connHost.Port, -1)
+    return []byte(str)
 }

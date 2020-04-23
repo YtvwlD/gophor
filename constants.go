@@ -23,6 +23,7 @@ const (
     GophermapRenderErrorStr = ""
 
     ReplaceStrHostname = "$hostname"
+    ReplaceStrPort = "$port"
 
     /* Filesystem */
     GophermapFileStr = "gophermap"

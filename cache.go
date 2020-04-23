@@ -62,23 +62,23 @@ func (fc *FileCache) Init(size int, fileSizeMax float64) {
     fc.FileSizeMax = int64(BytesInMegaByte * fileSizeMax)
 }
 
-func (fc *FileCache) FetchRegular(path string) ([]byte, *GophorError) {
+func (fc *FileCache) FetchRegular(path string, connHost ConnHost) ([]byte, *GophorError) {
     return fc.Fetch(path, func(path string) FileContents {
         contents := new(RegularFileContents)
         contents.path = path
         return contents
-    })
+    }, connHost)
 }
 
-func (fc *FileCache) FetchGophermap(path string) ([]byte, *GophorError) {
+func (fc *FileCache) FetchGophermap(path string, connHost ConnHost) ([]byte, *GophorError) {
     return fc.Fetch(path, func(path string) FileContents {
         contents := new(GophermapContents)
         contents.path = path
         return contents
-    })
+    }, connHost)
 }
 
-func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContents) ([]byte, *GophorError) {
+func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContents, connHost ConnHost) ([]byte, *GophorError) {
     /* Get cache map read lock then check if file in cache map */
     fc.CacheMutex.RLock()
     file := fc.CacheMap.Get(path)
@@ -136,7 +136,7 @@ func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContent
          * contents, unlock all mutex and don't bother caching. 
          */
         if stat.Size() > fc.FileSizeMax {
-            b := file.Contents()
+            b := file.Contents(connHost)
             fc.CacheMutex.RUnlock()
             return b, nil
         }
@@ -157,7 +157,7 @@ func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContent
     }
 
     /* Read file contents into new variable for return, then unlock file read lock */
-    b := file.Contents()
+    b := file.Contents(connHost)
     file.RUnlock()
 
     /* Finally we can unlock the cache map read lock, we are done :) */
