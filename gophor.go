@@ -6,7 +6,6 @@ import (
     "syscall"
     "os/signal"
     "flag"
-    "net"
     "time"
 )
 
@@ -52,7 +51,7 @@ func main() {
 
                 /* Run this in it's own goroutine so we can go straight back to accepting */
                 go func() {
-                    w := NewWorker(&newConn, Config.Port)
+                    w := NewWorker(newConn)
                     w.Serve()
                 }()
             }
@@ -65,7 +64,7 @@ func main() {
     os.Exit(0)
 }
 
-func setupServer() []net.Listener {
+func setupServer() []*GophorListener {
     /* First we setup all the flags and parse them... */
 
     /* Base server settings */
@@ -120,19 +119,19 @@ func setupServer() []net.Listener {
     Config.LogSystem("Chroot success, new root: %s\n", *serverRoot)
 
     /* Setup listeners */
-    listeners := make([]net.Listener, 0)
+    listeners := make([]*GophorListener, 0)
 
     /* If provided unencrypted port, setup listener! */
     if Config.Port == NullPort {
         Config.LogSystemFatal("%s is not a valid port to bind to!\n", NullPort)
     }
 
-    l, err := net.Listen("tcp", *serverBindAddr+":"+Config.Port)
+    /* Start the listener (open socket bound to *serverPort) */
+    l, err := BeginGophorListen(*serverBindAddr, *serverHostname, Config.Port)
     if err != nil {
         Config.LogSystemFatal("Error setting up listener on %s: %s\n", *serverBindAddr+":"+Config.Port, err.Error())
     }
     Config.LogSystem("Listening (unencrypted): gopher://%s\n", l.Addr())
-
     listeners = append(listeners, l)
 
     /* Drop privileges */

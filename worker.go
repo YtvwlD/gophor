@@ -2,7 +2,6 @@ package main
 
 import (
     "os"
-    "net"
     "path"
     "strings"
 )
@@ -20,14 +19,12 @@ const (
 )
 
 type Worker struct {
-    Conn net.Conn
-    Port string
+    Conn *GophorConn
 }
 
-func NewWorker(conn *net.Conn, port string) *Worker {
+func NewWorker(conn *GophorConn) *Worker {
     worker := new(Worker)
-    worker.Conn = *conn
-    worker.Port = port
+    worker.Conn = conn
     return worker
 }
 
