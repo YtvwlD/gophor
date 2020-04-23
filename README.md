@@ -23,8 +23,7 @@ gophor [args]
        -port           Change server NON-TLS listening port.
        -hostname       Change server hostname (FQDN, used to craft dir lists).
        -bind-addr      Change server bind-address (used in creating socket).
-       -uid            Change UID to drop privileges to.
-       -gid            Change GID to drop privileges to.
+       -user           Drop to supplied user's UID and GID permissions before execution.
        -system-log     Path to gophor system log file, else use stderr.
        -access-log     Path to gophor access log file, else use stderr.
        -cache-check    Change file-cache freshness check frequency.
