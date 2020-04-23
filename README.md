@@ -188,9 +188,6 @@ Port: `0`
 
 Shortterm:
 
-- Clean up configuration setting -- just need to rethink flags used, storing
-  of variables and possibly move to file-based configuration.
-
 - Rotating logs -- have a check on start for a file-size, rotate out if the
   file is too large. Possibly checks during run-time too?
 
