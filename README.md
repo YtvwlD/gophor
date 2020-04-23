@@ -210,9 +210,10 @@ Shortterm:
 
 Longterm:
 
-- TLS support -- requires a rethink of how we're passing port functions
+- TLS support -- ~~requires a rethink of how we're passing port functions
   generating gopher directory entries, also there is no definitive standard
-  for this yet
+  for this yet~~ implemented these changes! figuring out gopher + TLS itself
+  though? no luck yet.
 
 - Connection throttling + timeouts -- thread to keep track of list of
   recently connected IPs. Keep incremementing connection count and only
