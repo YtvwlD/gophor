@@ -187,6 +187,8 @@ Port: `0`
 
 Shortterm:
 
+- Improve passing of ConnHost details to files being rendered
+
 - Rotating logs -- have a check on start for a file-size, rotate out if the
   file is too large. Possibly checks during run-time too?
 
