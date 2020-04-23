@@ -2,6 +2,7 @@ package main
 
 import (
     "os"
+    "os/user"
     "strconv"
     "syscall"
     "os/signal"
@@ -72,8 +73,7 @@ func setupServer() []*GophorListener {
     serverHostname    := flag.String("hostname", "127.0.0.1", "Change server hostname (FQDN).")
     serverPort        := flag.Int("port", 70, "Change server port (0 to disable unencrypted traffic).")
     serverBindAddr    := flag.String("bind-addr", "127.0.0.1", "Change server socket bind address")
-    execUid           := flag.Int("uid", 1000, "Change UID to drop executable privileges to.")
-    execGid           := flag.Int("gid", 100, "Change GID to drop executable privileges to.")
+    execAs            := flag.String("user", "", "Drop to supplied user's UID and GID permissions before execution.")
 
     /* User supplied caps.txt information */
     serverDescription := flag.String("description", "Gophor: a Gopher server in GoLang", "Change server description in auto-generated caps.txt.")
@@ -110,6 +110,27 @@ func setupServer() []*GophorListener {
     /* Setup Gophor logging system */
     Config.SystemLogger, Config.AccessLogger = setupLogging(*logType, *systemLogPath, *accessLogPath)
 
+    /* Get UID + GID for requested user. Has to be done BEFORE chroot or it fails */
+    var uid, gid int
+    if *execAs == "" {
+        /* No 'execAs' user specified, try run as default user account permissions */
+        uid = 1000
+        gid = 1000
+    } else if *execAs == "root" {
+        /* Naughty, naughty! */
+        Config.LogSystemFatal("Gophor does not support directly running as root\n")
+    } else {
+        /* Try lookup specified username */
+        user, err := user.Lookup(*execAs)
+        if err != nil {
+            Config.LogSystemFatal("Error getting information for requested user %s: %s\n", *execAs, err)
+        }
+
+        /* These values should be coming straight out of /etc/passwd, so assume safe */
+        uid, _ = strconv.Atoi(user.Uid)
+        gid, _ = strconv.Atoi(user.Gid)
+    }
+
     /* Enter server dir */
     enterServerDir(*serverRoot)
     Config.LogSystem("Entered server directory: %s\n", *serverRoot)
@@ -134,8 +155,9 @@ func setupServer() []*GophorListener {
     Config.LogSystem("Listening (unencrypted): gopher://%s\n", l.Addr())
     listeners = append(listeners, l)
 
-    /* Drop privileges */
-    setPrivileges(*execUid, *execGid)
+    /* Drop privileges to retrieved UID + GID */
+    setPrivileges(uid, gid)
+    Config.LogSystem("Successfully dropped privileges to UID:%d GID:%d\n", uid, gid)
 
     /* Compile user restricted files regex if supplied */
     if *restrictedFiles != "" {
@@ -201,7 +223,6 @@ func setPrivileges(execUid, execGid int) {
         if result != 0 {
             Config.LogSystemFatal("Failed setting GID %d: %d\n", execGid, result)
         }
-        Config.LogSystem("Dropping to GID: %d\n", execGid)
     }
 
     /* Set UID if necessary */
@@ -211,6 +232,5 @@ func setPrivileges(execUid, execGid int) {
         if result != 0 {
             Config.LogSystemFatal("Failed setting UID %d: %d\n", execUid, result)
         }
-        Config.LogSystem("Dropping to UID: %d\n", execUid)
     }
 }
