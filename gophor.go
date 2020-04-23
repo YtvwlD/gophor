@@ -146,7 +146,7 @@ func setupServer() []*GophorListener {
     if Config.Port != NullPort {
         l, err := BeginGophorListen(*serverBindAddr, *serverHostname, Config.Port)
         if err != nil {
-            Config.LogSystemFatal("Error setting up (unencrypted) listener on %s: %s\n", *serverBindAddr+":"+Config.Port, err.Error())
+            Config.LogSystemFatal("Error setting up (unencrypted) listener: %s\n", err.Error())
         }
         Config.LogSystem("Listening (unencrypted): gopher://%s\n", l.Addr())
         listeners = append(listeners, l)
