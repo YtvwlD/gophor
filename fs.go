@@ -273,8 +273,9 @@ func _listDirBase(dirPath string, iterFunc func(dirContents *[]byte, file os.Fil
     /* Create directory content slice, ready */
     dirContents := make([]byte, 0)
 
-    /* First add a title */
+    /* First add a title + a space */
     dirContents = append(dirContents, buildLine(TypeInfo, "[ "+Config.Hostname+dirPath+" ]", "TITLE", NullHost, NullPort)...)
+    dirContents = append(dirContents, buildInfoLine("")...)
 
     /* Add a 'back' entry. GoLang Readdir() seems to miss this */
     dirContents = append(dirContents, buildLine(TypeDirectory, "..", path.Join(fd.Name(), ".."), Config.Hostname, Config.Port)...)
