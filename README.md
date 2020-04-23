@@ -198,9 +198,6 @@ Shortterm:
   either way the 2 processes interact via some IPC method. Could allow for
   other modules too.
 
-- Allow setting UID+GID via username string -- not hard to implemenent, just
-  a lot of code and didn't want to make things to heavy too early on.
-
 - Fix file cache only updating if main gophermap changes (but not sub files)
   -- need to either rethink how we keep track of files, or rethink how
   gophermaps are stored in memory.
