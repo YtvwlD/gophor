@@ -2,7 +2,7 @@ package main
 
 const (
     /* Gophor */
-    GophorVersion = "0.2-alpha"
+    GophorVersion = "0.3-alpha"
 
     /* Parsing */
     DOSLineEnd = "\r\n"
@@ -17,12 +17,13 @@ const (
 
     NullSelector = "-"
     NullHost = "null.host"
-    NullPort = 0
+    NullPort = "0"
 
     SelectorErrorStr = "selector_length_error"
     GophermapRenderErrorStr = ""
 
     ReplaceStrHostname = "$hostname"
+    ReplaceStrPort = "$port"
 
     /* Filesystem */
     GophermapFileStr = "gophermap"

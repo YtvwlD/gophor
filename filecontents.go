@@ -16,11 +16,15 @@ type RegularFileContents struct {
     contents []byte
 }
 
-func (fc *RegularFileContents) Render() []byte {
+func (fc *RegularFileContents) Render(request *FileSystemRequest) []byte {
+    /* Here we can ignore the extra data in request.
+     * We are but a simple cache'd file
+     */
     return fc.contents
 }
 
 func (fc *RegularFileContents) Load() *GophorError {
+    /* Load the file into memory */
     var gophorErr *GophorError
     fc.contents, gophorErr = bufferedRead(fc.path)
     return gophorErr
@@ -41,23 +45,29 @@ type GophermapContents struct {
     sections []GophermapSection
 }
 
-func (gc *GophermapContents) Render() []byte {
-    /* We don't just want to read the contents, but also
-     * execute any included gophermap execute lines
+func (gc *GophermapContents) Render(request *FileSystemRequest) []byte {
+    /* We don't just want to read the contents, each section
+     * in the sections slice needs a call to render() to
+     * perform their own required actions in producing a
+     * sendable byte slice.
      */
     returnContents := make([]byte, 0)
     for _, line := range gc.sections {
-        content, gophorErr := line.Render()
+        content, gophorErr := line.Render(request)
         if gophorErr != nil {
             content = buildInfoLine(GophermapRenderErrorStr)
         }
         returnContents = append(returnContents, content...)
     }
 
+    /* Finally we end render with last line */
+    returnContents = append(returnContents, []byte(LastLine)...)
+
     return returnContents
 }
 
 func (gc *GophermapContents) Load() *GophorError {
+    /* Load the gophermap into memory as gophermap sections */
     var gophorErr *GophorError
     gc.sections, gophorErr = readGophermap(gc.path)
     return gophorErr
@@ -75,7 +85,7 @@ func (gc *GophermapContents) Clear() {
  * upon each file cache request.
  */
 type GophermapSection interface {
-    Render() ([]byte, *GophorError)
+    Render(*FileSystemRequest) ([]byte, *GophorError)
 }
 
 /* GophermapText:
@@ -92,8 +102,8 @@ func NewGophermapText(contents []byte) *GophermapText {
     return s
 }
 
-func (s *GophermapText) Render() ([]byte, *GophorError) {
-    return s.contents, nil
+func (s *GophermapText) Render(request *FileSystemRequest) ([]byte, *GophorError) {
+    return replaceStrings(string(s.contents), request.Host), nil
 }
 
 /* GophermapDirListing:
@@ -113,8 +123,11 @@ func NewGophermapDirListing(path string) *GophermapDirListing {
     return s
 }
 
-func (s *GophermapDirListing) Render() ([]byte, *GophorError) {
-    return listDir(s.path, s.Hidden)
+func (s *GophermapDirListing) Render(request *FileSystemRequest) ([]byte, *GophorError) {
+    /* We could just pass the request directly, but in case the request
+     * path happens to differ for whatever reason we create a new one
+     */
+    return listDir(&FileSystemRequest{ s.path, request.Host }, s.Hidden)
 }
 
 func readGophermap(path string) ([]GophermapSection, *GophorError) {
@@ -143,7 +156,7 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
                     sections = append(sections, NewGophermapText(buildInfoLine(line)))
 
                 case TypeTitle:
-                    /* Reformat title line to send as info title */
+                    /* Reformat title line to send as info line with appropriate selector */
                     if !titleAlready {
                         sections = append(sections, NewGophermapText(buildLine(TypeInfo, line[1:], "TITLE", NullHost, NullPort)))
                         titleAlready = true
@@ -180,7 +193,7 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
                         fileContents, gophorErr := readIntoGophermap(line[1:])
                         if gophorErr != nil {
                             /* Failed to read file, insert error line */
-                            logSystem("Error: %s\n", gophorErr)
+                            Config.LogSystem("Error: %s\n", gophorErr)
                             sections = append(sections, NewGophermapText(buildInfoLine("Error reading subgophermap: "+line[1:])))
                         } else {
                             sections = append(sections, NewGophermapText(fileContents))
@@ -204,8 +217,7 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
                     return false
 
                 default:
-                    /* Replace pre-set strings */
-                    line = strings.Replace(line, ReplaceStrHostname, *ServerHostname, -1)
+                    /* Just append to sections slice as gophermap text */
                     sections = append(sections, NewGophermapText([]byte(line+DOSLineEnd)))
             }
             
@@ -220,7 +232,8 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
 
     /* If dir listing requested, append the hidden files map then add
      * to sections slice. We can do this here as the TypeEndBeginList item
-     * type ALWAYS comes last, at least in the gophermap handled by this context.
+     * type ALWAYS comes last, at least in the gophermap handled by this call
+     * to readGophermap().
      */
     if dirListing != nil {
         dirListing.Hidden = hidden
@@ -274,9 +287,15 @@ func readIntoGophermap(path string) ([]byte, *GophorError) {
 }
 
 func minWidth(w int) int {
-    if w <= *PageWidth {
+    if w <= Config.PageWidth {
         return w
     } else {
-        return *PageWidth
+        return Config.PageWidth
     }
+}
+
+func replaceStrings(str string, connHost *ConnHost) []byte {
+    str = strings.Replace(str, ReplaceStrHostname, connHost.Name, -1)
+    str = strings.Replace(str, ReplaceStrPort, connHost.Port, -1)
+    return []byte(str)
 }

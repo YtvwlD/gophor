@@ -1,7 +1,6 @@
 package main
 
 import (
-    "strconv"
     "strings"
 )
 
@@ -31,6 +30,8 @@ var FileExtMap = map[string]ItemType{
     ".go":        TypeFile,
     ".fs":        TypeFile,
     ".odin":      TypeFile,
+    ".vim":       TypeFile,
+    ".nanorc":    TypeFile,
 
     ".md":        TypeMarkup,
 
@@ -68,15 +69,17 @@ var FileExtMap = map[string]ItemType{
 func buildError(selector string) []byte {
     ret := string(TypeError)
     ret += selector + DOSLineEnd
+    ret += LastLine
     return []byte(ret)
 }
 
-func buildLine(t ItemType, name, selector, host string, port int) []byte {
+/* Build gopher compliant line with supplied information */
+func buildLine(t ItemType, name, selector, host string, port string) []byte {
     ret := string(t)
 
     /* Add name, truncate name if too long */    
-    if len(name) > *PageWidth {
-        ret += name[:*PageWidth-4]+"...\t"
+    if len(name) > Config.PageWidth {
+        ret += name[:Config.PageWidth-5]+"...\t"
     } else {
         ret += name+"\t"
     }
@@ -90,21 +93,17 @@ func buildLine(t ItemType, name, selector, host string, port int) []byte {
     }
 
     /* Add host + port */
-    ret += host+"\t"+strconv.Itoa(port)+DOSLineEnd
+    ret += host+"\t"+port+DOSLineEnd
 
     return []byte(ret)
 }
 
+/* Build gopher compliant info line */
 func buildInfoLine(content string) []byte {
     return buildLine(TypeInfo, content, NullSelector, NullHost, NullPort)
 }
 
-/* getItemType(name string) ItemType:
- * Here we use an empty function pointer, and set the correct
- * function to be used during the restricted files regex parsing.
- * This negates need to check if RestrictedFilesRegex is nil every
- * single call.
- */
+/* Get item type for named file on disk */
 func getItemType(name string) ItemType {
     /* Split, name MUST be lower */
     split := strings.Split(strings.ToLower(name), ".")
@@ -127,6 +126,7 @@ func getItemType(name string) ItemType {
     }
 }
 
+/* Parse line type from contents */
 func parseLineType(line string) ItemType {
     lineLen := len(line)
 

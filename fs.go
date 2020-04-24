@@ -11,6 +11,19 @@ import (
     "bufio"
 )
 
+/* FileSystemRequest:
+ * Makes a request to the filesystem either through
+ * the FileCache or directly to a function like listDir().
+ * It carries the requested filesystem path and any extra
+ * needed information, for the moment just a set of details
+ * about the virtual host.. Opens things up a lot more for
+ * the future :)
+ */
+type FileSystemRequest struct {
+    Path string
+    Host *ConnHost
+}
+
 /* File:
  * Wraps around the cached contents of a file and
  * helps with management of this content by the
@@ -32,8 +45,8 @@ func NewFile(contents FileContents) *File {
     return f
 }
 
-func (f *File) Contents() []byte {
-    return f.contents.Render()
+func (f *File) Contents(request *FileSystemRequest) []byte {
+    return f.contents.Render(request)
 }
 
 func (f *File) LoadContents() *GophorError {
@@ -89,11 +102,12 @@ func (f *File) RUnlock() {
  * are requested.
  */
 type FileContents interface {
-    Render() []byte
-    Load()   *GophorError
+    Render(*FileSystemRequest) []byte
+    Load()                     *GophorError
     Clear()
 }
 
+/* Perform simple buffered read on a file at path */
 func bufferedRead(path string) ([]byte, *GophorError) {
     /* Open file */
     fd, err := os.Open(path)
@@ -131,6 +145,7 @@ func bufferedRead(path string) ([]byte, *GophorError) {
     return contents, nil
 }
 
+/* Perform buffered read on file at path, then scan through with supplied iterator func */
 func bufferedScan(path string, scanIterator func(*bufio.Scanner) bool) *GophorError {
     /* First, read raw file contents */
     contents, gophorErr := bufferedRead(path)
@@ -142,7 +157,7 @@ func bufferedScan(path string, scanIterator func(*bufio.Scanner) bool) *GophorEr
     reader := bytes.NewReader(contents)
     scanner := bufio.NewScanner(reader)
 
-    /* If contains DOS line-endings, use them! Else, Unix line-endings */
+    /* If contains DOS line-endings, split by DOS! Else, split by Unix */
     if bytes.Contains(contents, []byte(DOSLineEnd)) {
         scanner.Split(dosLineEndSplitter)
     } else {
@@ -196,10 +211,10 @@ func unixLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, er
  * This negates need to check if RestrictedFilesRegex is nil every
  * single call.
  */
-var listDir func(dirPath string, hidden map[string]bool) ([]byte, *GophorError)
+var listDir func(request *FileSystemRequest, hidden map[string]bool) ([]byte, *GophorError)
 
-func _listDir(dirPath string, hidden map[string]bool) ([]byte, *GophorError) {
-    return _listDirBase(dirPath, func(dirContents *[]byte, file os.FileInfo) {
+func _listDir(request *FileSystemRequest, hidden map[string]bool) ([]byte, *GophorError) {
+    return _listDirBase(request, func(dirContents *[]byte, file os.FileInfo) {
         /* If requested hidden */
         if _, ok := hidden[file.Name()]; ok {
             return
@@ -209,14 +224,14 @@ func _listDir(dirPath string, hidden map[string]bool) ([]byte, *GophorError) {
         switch {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
-                itemPath := path.Join(dirPath, file.Name())
-                *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, *ServerHostname, *ServerPort)...)
+                itemPath := path.Join(request.Path, file.Name())
+                *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
-                itemPath := path.Join(dirPath, file.Name())
+                itemPath := path.Join(request.Path, file.Name())
                 itemType := getItemType(itemPath)
-                *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, *ServerHostname, *ServerPort)...)
+                *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 
             default:
                 /* Ignore */
@@ -224,8 +239,8 @@ func _listDir(dirPath string, hidden map[string]bool) ([]byte, *GophorError) {
     })
 }
 
-func _listDirRegexMatch(dirPath string, hidden map[string]bool) ([]byte, *GophorError) {
-    return _listDirBase(dirPath, func(dirContents *[]byte, file os.FileInfo) {
+func _listDirRegexMatch(request *FileSystemRequest, hidden map[string]bool) ([]byte, *GophorError) {
+    return _listDirBase(request, func(dirContents *[]byte, file os.FileInfo) {
         /* If regex match in restricted files || requested hidden */
         if isRestrictedFile(file.Name()) {
             return
@@ -237,14 +252,14 @@ func _listDirRegexMatch(dirPath string, hidden map[string]bool) ([]byte, *Gophor
         switch {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
-                itemPath := path.Join(dirPath, file.Name())
-                *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, *ServerHostname, *ServerPort)...)
+                itemPath := path.Join(request.Path, file.Name())
+                *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
-                itemPath := path.Join(dirPath, file.Name())
+                itemPath := path.Join(request.Path, file.Name())
                 itemType := getItemType(itemPath)
-                *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, *ServerHostname, *ServerPort)...)
+                *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 
             default:
                 /* Ignore */
@@ -252,18 +267,18 @@ func _listDirRegexMatch(dirPath string, hidden map[string]bool) ([]byte, *Gophor
     })
 }
 
-func _listDirBase(dirPath string, iterFunc func(dirContents *[]byte, file os.FileInfo)) ([]byte, *GophorError) {
+func _listDirBase(request *FileSystemRequest, iterFunc func(dirContents *[]byte, file os.FileInfo)) ([]byte, *GophorError) {
     /* Open directory file descriptor */
-    fd, err := os.Open(dirPath)
+    fd, err := os.Open(request.Path)
     if err != nil {
-        logSystemError("failed to open %s: %s\n", dirPath, err.Error())
+        Config.LogSystemError("failed to open %s: %s\n", request.Path, err.Error())
         return nil, &GophorError{ FileOpenErr, err }
     }
 
     /* Read files in directory */
     files, err := fd.Readdir(-1)
     if err != nil {
-        logSystemError("failed to enumerate dir %s: %s\n", dirPath, err.Error())
+        Config.LogSystemError("failed to enumerate dir %s: %s\n", request.Path, err.Error())
         return nil, &GophorError{ DirListErr, err }
     }
 
@@ -273,11 +288,12 @@ func _listDirBase(dirPath string, iterFunc func(dirContents *[]byte, file os.Fil
     /* Create directory content slice, ready */
     dirContents := make([]byte, 0)
 
-    /* First add a title */
-    dirContents = append(dirContents, buildLine(TypeInfo, "[ "+*ServerHostname+dirPath+" ]", "TITLE", NullHost, NullPort)...)
+    /* First add a title + a space */
+    dirContents = append(dirContents, buildLine(TypeInfo, "[ "+request.Host.Name+request.Path+" ]", "TITLE", NullHost, NullPort)...)
+    dirContents = append(dirContents, buildInfoLine("")...)
 
     /* Add a 'back' entry. GoLang Readdir() seems to miss this */
-    dirContents = append(dirContents, buildLine(TypeDirectory, "..", path.Join(fd.Name(), ".."), *ServerHostname, *ServerPort)...)
+    dirContents = append(dirContents, buildLine(TypeDirectory, "..", path.Join(fd.Name(), ".."), request.Host.Name, request.Host.Port)...)
 
     /* Walk through files :D */
     for _, file := range files { iterFunc(&dirContents, file) }

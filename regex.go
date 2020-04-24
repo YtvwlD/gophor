@@ -5,33 +5,27 @@ import (
     "strings"
 )
 
-var RestrictedFilesRegex []*regexp.Regexp
+func compileUserRestrictedFilesRegex(restrictedFiles string) []*regexp.Regexp {
+    Config.LogSystem("Compiling restricted file regular expressions\n")
 
-func compileUserRestrictedFilesRegex() {
-    if *RestrictedFiles == "" {
-        /* User not supplied any restricted files, return here */
-        listDir = _listDir
-        return
-    }
-
-    /* Try compiling the RestrictedFilesRegex from finalRegex */
-    logSystem("Compiling restricted file regular expressions\n")
+    /* Return slice */
+    restrictedFilesRegex := make([]*regexp.Regexp, 0)
 
     /* Split the user supplied RestrictedFiles string by new-line */
-    RestrictedFilesRegex = make([]*regexp.Regexp, 0)
-    for _, expr := range strings.Split(*RestrictedFiles, "\n") {
+    for _, expr := range strings.Split(restrictedFiles, "\n") {
         regex, err := regexp.Compile(expr)
         if err != nil {
-            logSystemFatal("Failed compiling user restricted files regex: %s\n", expr)
+            Config.LogSystemFatal("Failed compiling user restricted files regex: %s\n", expr)
         }
-        RestrictedFilesRegex = append(RestrictedFilesRegex, regex)
+        restrictedFilesRegex = append(restrictedFilesRegex, regex)
     }
 
-    listDir = _listDirRegexMatch
+    return restrictedFilesRegex
 }
 
+/* Iterate through restricted file expressions, check if file _is_ restricted */
 func isRestrictedFile(name string) bool {
-    for _, regex := range RestrictedFilesRegex {
+    for _, regex := range Config.RestrictedFiles {
         if regex.MatchString(name) {
             return true
         }

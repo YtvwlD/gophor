@@ -2,7 +2,6 @@ package main
 
 import (
     "os"
-    "net"
     "path"
     "strings"
 )
@@ -20,14 +19,12 @@ const (
 )
 
 type Worker struct {
-    Socket    net.Conn
-    LogPrefix string
+    Conn *GophorConn
 }
 
-func NewWorker(socket *net.Conn) *Worker {
+func NewWorker(conn *GophorConn) *Worker {
     worker := new(Worker)
-    worker.Socket = *socket
-    worker.LogPrefix = worker.Socket.RemoteAddr().String()+" "
+    worker.Conn = conn
     return worker
 }
 
@@ -35,7 +32,7 @@ func (worker *Worker) Serve() {
     go func() {
         defer func() {
             /* Close-up shop */
-            worker.Socket.Close()
+            worker.Conn.Close()
         }()
 
         var count int
@@ -45,13 +42,12 @@ func (worker *Worker) Serve() {
         buf := make([]byte, SocketReadBufSize)
         received := make([]byte, 0)
 
-        /* Buffered read from listener */
         iter := 0
         for {
             /* Buffered read from listener */
-            count, err = worker.Socket.Read(buf)
+            count, err = worker.Conn.Read(buf)
             if err != nil {
-                logSystemError("Error reading from socket %s: %s\n", worker.Socket, err.Error())
+                Config.LogSystemError("Error reading from socket on port %s: %s\n", worker.Conn.Host.Port, err.Error())
                 return
             }
 
@@ -66,7 +62,7 @@ func (worker *Worker) Serve() {
 
             /* Hit max read chunk size, send error + close connection */
             if iter == MaxSocketReadChunks {
-                logSystemError("Reached max socket read size %d. Closing connection...\n", MaxSocketReadChunks*SocketReadBufSize)
+                Config.LogSystemError("Reached max socket read size %d. Closing connection...\n", MaxSocketReadChunks*SocketReadBufSize)
                 return
             }
 
@@ -79,9 +75,9 @@ func (worker *Worker) Serve() {
 
         /* Handle any error */
         if gophorErr != nil {
-            logSystemError("%s\n", gophorErr.Error())
+            Config.LogSystemError("%s\n", gophorErr.Error())
 
-            /* Try generate response bytes from error code */
+            /* Generate response bytes from error code */
             response := generateGopherErrorResponseFromCode(gophorErr.Code)
 
             /* If we got response bytes to send? SEND 'EM! */
@@ -94,7 +90,7 @@ func (worker *Worker) Serve() {
 }
 
 func (worker *Worker) SendRaw(b []byte) *GophorError {
-    count, err := worker.Socket.Write(b)
+    count, err := worker.Conn.Write(b)
     if err != nil {
         return &GophorError{ SocketWriteErr, err }
     } else if count != len(b) {
@@ -104,18 +100,18 @@ func (worker *Worker) SendRaw(b []byte) *GophorError {
 }
 
 func (worker *Worker) Log(format string, args ...interface{}) {
-    logAccess(worker.LogPrefix+format, args...)
+    Config.LogAccess(worker.Conn.RemoteAddr().String(), format, args...)
 }
 
 func (worker *Worker) LogError(format string, args ...interface{}) {
-    logAccessError(worker.LogPrefix+format, args...)
+    Config.LogAccessError(worker.Conn.RemoteAddr().String(), format, args...)
 }
 
 func (worker *Worker) RespondGopher(data []byte) *GophorError {
     /* According to Gopher spec, only read up to first Tab or Crlf */
     dataStr := readUpToFirstTabOrCrlf(data)
 
-    /* Handle URL request if so */
+    /* Handle URL request if so. TODO: this is so unelegant... */
     lenBefore := len(dataStr)
     dataStr = strings.TrimPrefix(dataStr, "URL:")
     switch len(dataStr) {
@@ -130,7 +126,7 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     /* Sanitize supplied path */
     requestPath := sanitizePath(dataStr)
 
-    /* Handle policy files */
+    /* Handle policy files. TODO: this is so unelegant... */
     switch requestPath {
         case "/"+CapsTxtStr:
             return worker.SendRaw(generateCapsTxt())
@@ -145,8 +141,9 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
         return &GophorError{ FileOpenErr, err }
     }
 
-
-    /* If not empty requestPath, check file type */
+    /* If not empty requestPath, check file type.
+     * Default type is directory.
+     */
     fileType := FileTypeDir
     if requestPath != "." {
         stat, err := file.Stat()
@@ -167,19 +164,17 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     /* Don't need the file handle anymore */
     file.Close()
 
-    /* TODO: work on efficiency */
-
-    /* Handle file type */
+    /* Handle file type. TODO: work on efficiency */
     response := make([]byte, 0)
     switch fileType {
         /* Directory */
         case FileTypeDir:
             /* First try to serve gopher map */
             gophermapPath := path.Join(requestPath, "/"+GophermapFileStr)
-            fileContents, gophorErr := GlobalFileCache.FetchGophermap(gophermapPath)
+            fileContents, gophorErr := Config.FileCache.FetchGophermap(&FileSystemRequest{ gophermapPath, worker.Conn.Host })
             if gophorErr != nil {
                 /* Get directory listing instead */
-                fileContents, gophorErr = listDir(requestPath, map[string]bool{})
+                fileContents, gophorErr = listDir(&FileSystemRequest{ requestPath, worker.Conn.Host }, map[string]bool{})
                 if gophorErr != nil {
                     return gophorErr
                 }
@@ -199,7 +194,7 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
         /* Regular file */
         case FileTypeRegular:
             /* Read file contents */
-            fileContents, gophorErr := GlobalFileCache.FetchRegular(requestPath)
+            fileContents, gophorErr := Config.FileCache.FetchRegular(&FileSystemRequest{ requestPath, worker.Conn.Host })
             if gophorErr != nil {
                 return gophorErr
             }
