@@ -146,7 +146,7 @@ server generated.
 ## Errors
 
 Errors are sent according to GopherII standards, terminating with a last
-line if required:
+line:
 `3<error text>CR-LF`
 
 Possible Gophor errors:
