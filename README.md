@@ -187,6 +187,8 @@ Port: `0`
 
 Shortterm:
 
+- Add last-mod-time to directory listings -- have global time parser object
+
 - Rotating logs -- have a check on start for a file-size, rotate out if the
   file is too large. Possibly checks during run-time too?
 
