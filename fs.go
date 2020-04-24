@@ -107,6 +107,7 @@ type FileContents interface {
     Clear()
 }
 
+/* Perform simple buffered read on a file at path */
 func bufferedRead(path string) ([]byte, *GophorError) {
     /* Open file */
     fd, err := os.Open(path)
@@ -144,6 +145,7 @@ func bufferedRead(path string) ([]byte, *GophorError) {
     return contents, nil
 }
 
+/* Perform buffered read on file at path, then scan through with supplied iterator func */
 func bufferedScan(path string, scanIterator func(*bufio.Scanner) bool) *GophorError {
     /* First, read raw file contents */
     contents, gophorErr := bufferedRead(path)
@@ -155,7 +157,7 @@ func bufferedScan(path string, scanIterator func(*bufio.Scanner) bool) *GophorEr
     reader := bytes.NewReader(contents)
     scanner := bufio.NewScanner(reader)
 
-    /* If contains DOS line-endings, use them! Else, Unix line-endings */
+    /* If contains DOS line-endings, split by DOS! Else, split by Unix */
     if bytes.Contains(contents, []byte(DOSLineEnd)) {
         scanner.Split(dosLineEndSplitter)
     } else {

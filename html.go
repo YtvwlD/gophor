@@ -1,17 +1,5 @@
 package main
 
-/*
-func generateHtmlErrorResponse(code ErrorResponseCode) []byte {
-    content :=
-        "<html>\n"+
-        "<body>\n"+
-        code.String()+"\n"+
-        "</body>\n"+
-        "</html>\n"
-    return generateHttpResponse(code, content)
-}
-*/
-
 func generateHtmlRedirect(url string) []byte {
     content :=
         "<html>\n"+

@@ -6,9 +6,9 @@ import (
 )
 
 func compileUserRestrictedFilesRegex(restrictedFiles string) []*regexp.Regexp {
-    /* Try compiling the RestrictedFilesRegex from finalRegex */
     Config.LogSystem("Compiling restricted file regular expressions\n")
 
+    /* Return slice */
     restrictedFilesRegex := make([]*regexp.Regexp, 0)
 
     /* Split the user supplied RestrictedFiles string by new-line */
@@ -23,6 +23,7 @@ func compileUserRestrictedFilesRegex(restrictedFiles string) []*regexp.Regexp {
     return restrictedFilesRegex
 }
 
+/* Iterate through restricted file expressions, check if file _is_ restricted */
 func isRestrictedFile(name string) bool {
     for _, regex := range Config.RestrictedFiles {
         if regex.MatchString(name) {

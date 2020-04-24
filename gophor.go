@@ -100,8 +100,6 @@ func setupServer() []*GophorListener {
     /* Setup the server configuration instance and enter as much as we can right now */
     Config = new(ServerConfig)
     Config.RootDir     = *serverRoot
-    Config.Hostname    = *serverHostname
-    Config.Port        = strconv.Itoa(*serverPort)
     Config.Description = *serverDescription
     Config.AdminEmail  = *serverAdmin
     Config.Geolocation = *serverGeoloc
@@ -143,13 +141,15 @@ func setupServer() []*GophorListener {
     listeners := make([]*GophorListener, 0)
 
     /* If requested, setup unencrypted listener */
-    if Config.Port != NullPort {
-        l, err := BeginGophorListen(*serverBindAddr, *serverHostname, Config.Port)
+    if *serverPort != 0 {
+        l, err := BeginGophorListen(*serverBindAddr, *serverHostname, strconv.Itoa(*serverPort))
         if err != nil {
             Config.LogSystemFatal("Error setting up (unencrypted) listener: %s\n", err.Error())
         }
         Config.LogSystem("Listening (unencrypted): gopher://%s\n", l.Addr())
         listeners = append(listeners, l)
+    } else {
+        Config.LogSystemFatal("No valid port to listen on :(\n")
     }
 
     /* Drop privileges to retrieved UID + GID */

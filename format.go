@@ -72,12 +72,13 @@ func buildError(selector string) []byte {
     return []byte(ret)
 }
 
+/* Build gopher compliant line with supplied information */
 func buildLine(t ItemType, name, selector, host string, port string) []byte {
     ret := string(t)
 
     /* Add name, truncate name if too long */    
     if len(name) > Config.PageWidth {
-        ret += name[:Config.PageWidth-4]+"...\t"
+        ret += name[:Config.PageWidth-5]+"...\t"
     } else {
         ret += name+"\t"
     }
@@ -96,16 +97,12 @@ func buildLine(t ItemType, name, selector, host string, port string) []byte {
     return []byte(ret)
 }
 
+/* Build gopher compliant info line */
 func buildInfoLine(content string) []byte {
     return buildLine(TypeInfo, content, NullSelector, NullHost, NullPort)
 }
 
-/* getItemType(name string) ItemType:
- * Here we use an empty function pointer, and set the correct
- * function to be used during the restricted files regex parsing.
- * This negates need to check if RestrictedFilesRegex is nil every
- * single call.
- */
+/* Get item type for named file on disk */
 func getItemType(name string) ItemType {
     /* Split, name MUST be lower */
     split := strings.Split(strings.ToLower(name), ".")
@@ -128,6 +125,7 @@ func getItemType(name string) ItemType {
     }
 }
 
+/* Parse line type from contents */
 func parseLineType(line string) ItemType {
     lineLen := len(line)
 

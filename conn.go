@@ -4,16 +4,15 @@ import (
     "net"
 )
 
-/* Data structure to hold specific host details
- * for passing on later
- */
+/* Data structure to hold specific host details */
 type ConnHost struct {
     Name string
     Port string
 }
 
-/* Simple wrapper to Listener that generates
- * GophorConn instances on each accept
+/* Simple wrapper to Listener that holds onto virtual
+ * host information and generates GophorConn
+ * instances on each accept
  */
 type GophorListener struct {
     Listener net.Listener

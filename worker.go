@@ -42,7 +42,6 @@ func (worker *Worker) Serve() {
         buf := make([]byte, SocketReadBufSize)
         received := make([]byte, 0)
 
-        /* Buffered read from listener */
         iter := 0
         for {
             /* Buffered read from listener */
@@ -78,7 +77,7 @@ func (worker *Worker) Serve() {
         if gophorErr != nil {
             Config.LogSystemError("%s\n", gophorErr.Error())
 
-            /* Try generate response bytes from error code */
+            /* Generate response bytes from error code */
             response := generateGopherErrorResponseFromCode(gophorErr.Code)
 
             /* If we got response bytes to send? SEND 'EM! */
@@ -112,7 +111,7 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     /* According to Gopher spec, only read up to first Tab or Crlf */
     dataStr := readUpToFirstTabOrCrlf(data)
 
-    /* Handle URL request if so */
+    /* Handle URL request if so. TODO: this is so unelegant... */
     lenBefore := len(dataStr)
     dataStr = strings.TrimPrefix(dataStr, "URL:")
     switch len(dataStr) {
@@ -127,7 +126,7 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     /* Sanitize supplied path */
     requestPath := sanitizePath(dataStr)
 
-    /* Handle policy files */
+    /* Handle policy files. TODO: this is so unelegant... */
     switch requestPath {
         case "/"+CapsTxtStr:
             return worker.SendRaw(generateCapsTxt())
@@ -142,8 +141,9 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
         return &GophorError{ FileOpenErr, err }
     }
 
-
-    /* If not empty requestPath, check file type */
+    /* If not empty requestPath, check file type.
+     * Default type is directory.
+     */
     fileType := FileTypeDir
     if requestPath != "." {
         stat, err := file.Stat()
@@ -164,9 +164,7 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     /* Don't need the file handle anymore */
     file.Close()
 
-    /* TODO: work on efficiency */
-
-    /* Handle file type */
+    /* Handle file type. TODO: work on efficiency */
     response := make([]byte, 0)
     switch fileType {
         /* Directory */

@@ -49,6 +49,12 @@ func checkCacheFreshness() {
     Config.FileCache.CacheMutex.Unlock()
 }
 
+/* FileCache:
+ * Object to hold and help manage our file cache. Uses a fixed map
+ * as a means of easily collecting files by path, but also being able
+ * to remove cached files in a LRU style. Uses a RW mutex to lock the
+ * cache map for appropriate functions and ensure thread safety.
+ */
 type FileCache struct {
     CacheMap    *FixedMap
     CacheMutex  sync.RWMutex
@@ -62,6 +68,7 @@ func (fc *FileCache) Init(size int, fileSizeMax float64) {
 }
 
 func (fc *FileCache) FetchRegular(request *FileSystemRequest) ([]byte, *GophorError) {
+    /* Calls fc.Fetch() but with the filecontents init function for a regular file */
     return fc.Fetch(request, func(path string) FileContents {
         contents := new(RegularFileContents)
         contents.path = path
@@ -70,6 +77,7 @@ func (fc *FileCache) FetchRegular(request *FileSystemRequest) ([]byte, *GophorEr
 }
 
 func (fc *FileCache) FetchGophermap(request *FileSystemRequest) ([]byte, *GophorError) {
+    /* Calls fc.Fetch() but with the filecontents init function for a gophermap */
     return fc.Fetch(request, func(path string) FileContents {
         contents := new(GophermapContents)
         contents.path = path
@@ -82,7 +90,8 @@ func (fc *FileCache) Fetch(request *FileSystemRequest, newFileContents func(stri
     fc.CacheMutex.RLock()
     file := fc.CacheMap.Get(request.Path)
 
-    /* TODO: work on efficiency */
+    /* TODO: work on efficiency. improve use of mutex?? */
+
     if file != nil {
         /* File in cache -- before doing anything get file read lock */
         file.RLock()
@@ -107,7 +116,9 @@ func (fc *FileCache) Fetch(request *FileSystemRequest, newFileContents func(stri
             file.RLock()
         }
     } else {
-        /* Before we do ANYTHING, we need to check file-size on disk */
+        /* Perform filesystem stat ready for checking file size later.
+         * Doing this now allows us to weed-out non-existent files early
+         */
         stat, err := os.Stat(request.Path)
         if err != nil {
             /* Error stat'ing file, unlock read mutex then return error */
@@ -122,7 +133,7 @@ func (fc *FileCache) Fetch(request *FileSystemRequest, newFileContents func(stri
         file = NewFile(contents)
 
         /* NOTE: file isn't in cache yet so no need to lock file write mutex
-         * before loading from disk
+         * before loading contents from disk
          */
         gophorErr := file.LoadContents()
         if gophorErr != nil {

@@ -4,9 +4,7 @@ import (
     "fmt"
 )
 
-/*
- * Client error data structure
- */
+/* Simple error code type defs */
 type ErrorCode int
 type ErrorResponseCode int
 const (
@@ -43,11 +41,13 @@ const (
     NoResponse       ErrorResponseCode = iota
 )
 
+/* Simple GophorError data structure to wrap another error */
 type GophorError struct {
     Code ErrorCode
     Err  error
 }
 
+/* Convert error code to string */
 func (e *GophorError) Error() string {
     var str string
     switch e.Code {
@@ -91,6 +91,7 @@ func (e *GophorError) Error() string {
     }
 }
 
+/* Convert a gophor error code to appropriate error response code */
 func gophorErrorToResponseCode(code ErrorCode) ErrorResponseCode {
     switch code {
         case PathEnumerationErr:
@@ -109,7 +110,7 @@ func gophorErrorToResponseCode(code ErrorCode) ErrorResponseCode {
         case DirListErr:
             return ErrorResponse404
 
-        /* These are errors sending, no point trying to send error */
+        /* These are errors _while_ sending, no point trying to send error  */
         case SocketWriteErr:
             return NoResponse
         case SocketWriteCountErr:
@@ -129,6 +130,7 @@ func gophorErrorToResponseCode(code ErrorCode) ErrorResponseCode {
     }
 }
 
+/* Generates gopher protocol compatible error response from our code */
 func generateGopherErrorResponseFromCode(code ErrorCode) []byte {
     responseCode := gophorErrorToResponseCode(code)
     if responseCode == NoResponse {
@@ -137,11 +139,13 @@ func generateGopherErrorResponseFromCode(code ErrorCode) []byte {
     return generateGopherErrorResponse(responseCode)
 }
 
+/* Generates gopher protocol compatible error response for response code */
 func generateGopherErrorResponse(code ErrorResponseCode) []byte {
     b := buildError(code.String())
     return append(b, []byte(LastLine)...)
 }
 
+/* Error response code to string */
 func (e ErrorResponseCode) String() string {
     switch e {
         case ErrorResponse200:

@@ -4,10 +4,12 @@ import (
     "container/list"
 )
 
+/* TODO: work on efficiency. use our own lower level data structure? */
+
 /* FixedMap:
  * A fixed size map that pushes the last
  * used value from the stack if size limit
- * is reached and user attempts .Put()
+ * is reached.
  */
 type FixedMap struct {
     Map  map[string]*MapElement
@@ -32,6 +34,7 @@ func NewFixedMap(size int) *FixedMap {
     return fm
 }
 
+/* Get file in map for key, or nil */
 func (fm *FixedMap) Get(key string) *File {
     elem, ok := fm.Map[key]
     if ok {
@@ -41,6 +44,8 @@ func (fm *FixedMap) Get(key string) *File {
     }
 }
 
+/* Put file in map as key, pushing out last file
+ * if size limit reached */
 func (fm *FixedMap) Put(key string, value *File) {
     element := fm.List.PushFront(key)
     fm.Map[key] = &MapElement{ element, value }
@@ -60,6 +65,7 @@ func (fm *FixedMap) Put(key string, value *File) {
     }
 }
 
+/* Try delete element, else do nothing */
 func (fm *FixedMap) Remove(key string) {
     elem, ok := fm.Map[key]
     if !ok {

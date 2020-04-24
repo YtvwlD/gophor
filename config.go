@@ -5,12 +5,15 @@ import (
     "log"
 )
 
+/* ServerConfig:
+ * Holds onto global server configuration details
+ * and any data objects we want to keep in memory
+ * (e.g. loggers, restricted files regular expressions
+ * and file cache)
+ */
 type ServerConfig struct {
     /* Base settings */
     RootDir         string
-    Hostname        string
-    Port            string
-    TlsPort         string
 
     /* Caps.txt information */
     Description     string
