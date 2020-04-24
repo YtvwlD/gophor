@@ -173,10 +173,10 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
         case FileTypeDir:
             /* First try to serve gopher map */
             gophermapPath := path.Join(requestPath, "/"+GophermapFileStr)
-            fileContents, gophorErr := Config.FileCache.FetchGophermap(gophermapPath, worker.Conn.Host)
+            fileContents, gophorErr := Config.FileCache.FetchGophermap(&FileSystemRequest{ gophermapPath, worker.Conn.Host })
             if gophorErr != nil {
                 /* Get directory listing instead */
-                fileContents, gophorErr = listDir(requestPath, map[string]bool{}, worker.Conn.Host)
+                fileContents, gophorErr = listDir(&FileSystemRequest{ requestPath, worker.Conn.Host }, map[string]bool{})
                 if gophorErr != nil {
                     return gophorErr
                 }
@@ -196,7 +196,7 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
         /* Regular file */
         case FileTypeRegular:
             /* Read file contents */
-            fileContents, gophorErr := Config.FileCache.FetchRegular(requestPath, worker.Conn.Host)
+            fileContents, gophorErr := Config.FileCache.FetchRegular(&FileSystemRequest{ requestPath, worker.Conn.Host })
             if gophorErr != nil {
                 return gophorErr
             }

@@ -49,7 +49,6 @@ func checkCacheFreshness() {
     Config.FileCache.CacheMutex.Unlock()
 }
 
-/* TODO: see if there is more efficienct setup */
 type FileCache struct {
     CacheMap    *FixedMap
     CacheMutex  sync.RWMutex
@@ -62,26 +61,26 @@ func (fc *FileCache) Init(size int, fileSizeMax float64) {
     fc.FileSizeMax = int64(BytesInMegaByte * fileSizeMax)
 }
 
-func (fc *FileCache) FetchRegular(path string, connHost ConnHost) ([]byte, *GophorError) {
-    return fc.Fetch(path, func(path string) FileContents {
+func (fc *FileCache) FetchRegular(request *FileSystemRequest) ([]byte, *GophorError) {
+    return fc.Fetch(request, func(path string) FileContents {
         contents := new(RegularFileContents)
         contents.path = path
         return contents
-    }, connHost)
+    })
 }
 
-func (fc *FileCache) FetchGophermap(path string, connHost ConnHost) ([]byte, *GophorError) {
-    return fc.Fetch(path, func(path string) FileContents {
+func (fc *FileCache) FetchGophermap(request *FileSystemRequest) ([]byte, *GophorError) {
+    return fc.Fetch(request, func(path string) FileContents {
         contents := new(GophermapContents)
         contents.path = path
         return contents
-    }, connHost)
+    })
 }
 
-func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContents, connHost ConnHost) ([]byte, *GophorError) {
+func (fc *FileCache) Fetch(request *FileSystemRequest, newFileContents func(string) FileContents) ([]byte, *GophorError) {
     /* Get cache map read lock then check if file in cache map */
     fc.CacheMutex.RLock()
-    file := fc.CacheMap.Get(path)
+    file := fc.CacheMap.Get(request.Path)
 
     /* TODO: work on efficiency */
     if file != nil {
@@ -109,7 +108,7 @@ func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContent
         }
     } else {
         /* Before we do ANYTHING, we need to check file-size on disk */
-        stat, err := os.Stat(path)
+        stat, err := os.Stat(request.Path)
         if err != nil {
             /* Error stat'ing file, unlock read mutex then return error */
             fc.CacheMutex.RUnlock()
@@ -117,7 +116,7 @@ func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContent
         }
 
         /* Create new file contents object using supplied function */
-        contents := newFileContents(path)
+        contents := newFileContents(request.Path)
 
         /* Create new file wrapper around contents */
         file = NewFile(contents)
@@ -136,7 +135,7 @@ func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContent
          * contents, unlock all mutex and don't bother caching. 
          */
         if stat.Size() > fc.FileSizeMax {
-            b := file.Contents(connHost)
+            b := file.Contents(request)
             fc.CacheMutex.RUnlock()
             return b, nil
         }
@@ -146,7 +145,7 @@ func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContent
         fc.CacheMutex.Lock()
 
         /* Put file in the FixedMap */
-        fc.CacheMap.Put(path, file)
+        fc.CacheMap.Put(request.Path, file)
 
         /* Before unlocking cache mutex, lock file read for upcoming call to .Contents() */
         file.RLock()
@@ -157,7 +156,7 @@ func (fc *FileCache) Fetch(path string, newFileContents func(string) FileContent
     }
 
     /* Read file contents into new variable for return, then unlock file read lock */
-    b := file.Contents(connHost)
+    b := file.Contents(request)
     file.RUnlock()
 
     /* Finally we can unlock the cache map read lock, we are done :) */

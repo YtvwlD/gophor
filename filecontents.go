@@ -16,7 +16,7 @@ type RegularFileContents struct {
     contents []byte
 }
 
-func (fc *RegularFileContents) Render(connHost ConnHost) []byte {
+func (fc *RegularFileContents) Render(request *FileSystemRequest) []byte {
     return fc.contents
 }
 
@@ -41,13 +41,13 @@ type GophermapContents struct {
     sections []GophermapSection
 }
 
-func (gc *GophermapContents) Render(connHost ConnHost) []byte {
+func (gc *GophermapContents) Render(request *FileSystemRequest) []byte {
     /* We don't just want to read the contents, but also
      * execute any included gophermap execute lines
      */
     returnContents := make([]byte, 0)
     for _, line := range gc.sections {
-        content, gophorErr := line.Render(connHost)
+        content, gophorErr := line.Render(request)
         if gophorErr != nil {
             content = buildInfoLine(GophermapRenderErrorStr)
         }
@@ -75,7 +75,7 @@ func (gc *GophermapContents) Clear() {
  * upon each file cache request.
  */
 type GophermapSection interface {
-    Render(ConnHost) ([]byte, *GophorError)
+    Render(*FileSystemRequest) ([]byte, *GophorError)
 }
 
 /* GophermapText:
@@ -92,8 +92,8 @@ func NewGophermapText(contents []byte) *GophermapText {
     return s
 }
 
-func (s *GophermapText) Render(connHost ConnHost) ([]byte, *GophorError) {
-    return replaceStrings(string(s.contents), connHost), nil
+func (s *GophermapText) Render(request *FileSystemRequest) ([]byte, *GophorError) {
+    return replaceStrings(string(s.contents), request.Host), nil
 }
 
 /* GophermapDirListing:
@@ -113,8 +113,11 @@ func NewGophermapDirListing(path string) *GophermapDirListing {
     return s
 }
 
-func (s *GophermapDirListing) Render(connHost ConnHost) ([]byte, *GophorError) {
-    return listDir(s.path, s.Hidden, connHost)
+func (s *GophermapDirListing) Render(request *FileSystemRequest) ([]byte, *GophorError) {
+    /* We could just pass the request directly, but in case the request
+     * path happens to differ for whatever reason we create a new one
+     */
+    return listDir(&FileSystemRequest{ s.path, request.Host }, s.Hidden)
 }
 
 func readGophermap(path string) ([]GophermapSection, *GophorError) {
@@ -282,7 +285,7 @@ func minWidth(w int) int {
     }
 }
 
-func replaceStrings(str string, connHost ConnHost) []byte {
+func replaceStrings(str string, connHost *ConnHost) []byte {
     str = strings.Replace(str, ReplaceStrHostname, connHost.Name, -1)
     str = strings.Replace(str, ReplaceStrPort, connHost.Port, -1)
     return []byte(str)

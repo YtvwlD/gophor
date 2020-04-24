@@ -17,12 +17,12 @@ type ConnHost struct {
  */
 type GophorListener struct {
     Listener net.Listener
-    Host     ConnHost
+    Host     *ConnHost
 }
 
 func BeginGophorListen(bindAddr, hostname, port string) (*GophorListener, error) {
     gophorListener := new(GophorListener)
-    gophorListener.Host = ConnHost{ hostname, port }
+    gophorListener.Host = &ConnHost{ hostname, port }
 
     var err error
     gophorListener.Listener, err = net.Listen("tcp", bindAddr+":"+port)
@@ -41,7 +41,7 @@ func (l *GophorListener) Accept() (*GophorConn, error) {
 
     gophorConn := new(GophorConn)
     gophorConn.Conn = conn
-    gophorConn.Host = l.Host
+    gophorConn.Host = &ConnHost{ l.Host.Name, l.Host.Port }
     return gophorConn, nil
 }
 
@@ -54,7 +54,7 @@ func (l *GophorListener) Addr() net.Addr {
  */
 type GophorConn struct {
     Conn     net.Conn
-    Host     ConnHost
+    Host     *ConnHost
 }
 
 func (c *GophorConn) Read(b []byte) (int, error) {
