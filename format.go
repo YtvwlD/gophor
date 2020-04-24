@@ -30,6 +30,8 @@ var FileExtMap = map[string]ItemType{
     ".go":        TypeFile,
     ".fs":        TypeFile,
     ".odin":      TypeFile,
+    ".vim":       TypeFile,
+    ".nanorc":    TypeFile,
 
     ".md":        TypeMarkup,
 
