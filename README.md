@@ -53,9 +53,8 @@ gophor [args]
 - Insert files within gophermaps, including automating reflowing of lines
   longer than (user definable) page width.
 
-- Automatic replacement of `$hostname` with your server's selected hostname
-  if you put `$hostname` in your gophermap... Wanna hear me say hostname one
-  more time?
+- Automatic replacement of `$hostname` or `$port` with the information of
+  the host the client is connecting to.
 
 - Item type characters beyond RFC 1436 standard (see below).
 
