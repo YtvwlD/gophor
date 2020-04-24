@@ -141,8 +141,7 @@ func generateGopherErrorResponseFromCode(code ErrorCode) []byte {
 
 /* Generates gopher protocol compatible error response for response code */
 func generateGopherErrorResponse(code ErrorResponseCode) []byte {
-    b := buildError(code.String())
-    return append(b, []byte(LastLine)...)
+    return buildError(code.String())
 }
 
 /* Error response code to string */

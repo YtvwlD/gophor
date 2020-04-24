@@ -69,6 +69,7 @@ var FileExtMap = map[string]ItemType{
 func buildError(selector string) []byte {
     ret := string(TypeError)
     ret += selector + DOSLineEnd
+    ret += LastLine
     return []byte(ret)
 }
 
