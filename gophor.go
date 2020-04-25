@@ -43,6 +43,8 @@ func main() {
     /* Start accepting connections on any supplied listeners */
     for _, l := range listeners {
         go func() {
+            Config.LogSystem("Listening on: gopher://%s\n", l.Addr())
+
             for {
                 newConn, err := l.Accept()
                 if err != nil {
@@ -145,7 +147,6 @@ func setupServer() []*GophorListener {
         if err != nil {
             Config.LogSystemFatal("Error setting up (unencrypted) listener: %s\n", err.Error())
         }
-        Config.LogSystem("Listening (unencrypted): gopher://%s\n", l.Addr())
         listeners = append(listeners, l)
     } else {
         Config.LogSystemFatal("No valid port to listen on :(\n")
@@ -175,6 +176,11 @@ func setupServer() []*GophorListener {
     /* Setup file cache */
     Config.FileCache = new(FileCache)
     Config.FileCache.Init(*cacheSize, *cacheFileSizeMax)
+
+    /* Before file monitor or any kind of new goroutines started,
+     * check if we need to cache generated policy files
+     */
+    cachePolicyFiles()
 
     /* Start file cache freshness checker */
     go startFileMonitor(fileMonitorSleepTime)

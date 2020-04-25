@@ -6,6 +6,27 @@ import (
     "strings"
 )
 
+/* GeneratedFileContents:
+ * The simplest implementation of FileContents that
+ * stores some bytes and does nothing else.
+ */
+type GeneratedFileContents struct {
+    contents []byte
+}
+
+func (fc *GeneratedFileContents) Render(request *FileSystemRequest) []byte {
+    return fc.contents
+}
+
+func (fc *GeneratedFileContents) Load() *GophorError {
+    /* do nothing */
+    return nil
+}
+
+func (fc *GeneratedFileContents) Clear() {
+    /* do nothing */
+}
+
 /* RegularFileContents:
  * Very simple implementation of FileContents that just
  * buffered reads from the stored file path, stores the

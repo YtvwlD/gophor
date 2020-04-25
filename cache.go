@@ -27,6 +27,14 @@ func checkCacheFreshness() {
 
     /* Iterate through paths in cache map to query file last modified times */
     for path := range Config.FileCache.CacheMap.Map {
+        /* Get file pointer, no need for lock as we have write lock */
+        file := Config.FileCache.CacheMap.Get(path)
+
+        /* If this is a generated file, we skip */
+        if isGeneratedType(file) {
+            continue
+        }
+
         stat, err := os.Stat(path)
         if err != nil {
             /* Log file as not in cache, then delete */
@@ -36,17 +44,23 @@ func checkCacheFreshness() {
         }
         timeModified := stat.ModTime().UnixNano()
 
-        /* Get file pointer, no need for lock as we have write lock */
-        file := Config.FileCache.CacheMap.Get(path)
-
         /* If the file is marked as fresh, but file on disk newer, mark as unfresh */
-        if file.IsFresh() && file.LastRefresh() < timeModified {
-            file.SetUnfresh()
+        if file.Fresh && file.LastRefresh < timeModified {
+            file.Fresh = false
         }
     }
 
     /* Done! We can release cache read lock */
     Config.FileCache.CacheMutex.Unlock()
+}
+
+func isGeneratedType(file *File) bool {
+    switch file.contents.(type) {
+       case *GeneratedFileContents:
+           return true
+       default:
+           return false 
+    }
 }
 
 /* FileCache:
@@ -96,26 +110,26 @@ func (fc *FileCache) Fetch(request *FileSystemRequest, newFileContents func(stri
 
     if file != nil {
         /* File in cache -- before doing anything get file read lock */
-        file.RLock()
+        file.Mutex.RLock()
 
         /* Check file is marked as fresh */
-        if !file.IsFresh() {
+        if !file.Fresh {
             /* File not fresh! Swap file read for write-lock */
-            file.RUnlock()
-            file.Lock()
+            file.Mutex.RUnlock()
+            file.Mutex.Lock()
 
             /* Reload file contents from disk */
             gophorErr := file.LoadContents()
             if gophorErr != nil {
                 /* Error loading contents, unlock all mutex then return error */
-                file.Unlock()
+                file.Mutex.Unlock()
                 fc.CacheMutex.RUnlock()
                 return nil, gophorErr
             }
 
             /* Updated! Swap back file write for read lock */
-            file.Unlock()
-            file.RLock()
+            file.Mutex.Unlock()
+            file.Mutex.RLock()
         }
     } else {
         /* Perform filesystem stat ready for checking file size later.
@@ -159,7 +173,7 @@ func (fc *FileCache) Fetch(request *FileSystemRequest, newFileContents func(stri
         fc.CacheMap.Put(request.Path, file)
 
         /* Before unlocking cache mutex, lock file read for upcoming call to .Contents() */
-        file.RLock()
+        file.Mutex.RLock()
 
         /* Swap cache lock back to read */
         fc.CacheMutex.Unlock()
@@ -168,7 +182,7 @@ func (fc *FileCache) Fetch(request *FileSystemRequest, newFileContents func(stri
 
     /* Read file contents into new variable for return, then unlock file read lock */
     b := file.Contents(request)
-    file.RUnlock()
+    file.Mutex.RUnlock()
 
     /* Finally we can unlock the cache map read lock, we are done :) */
     fc.CacheMutex.RUnlock()

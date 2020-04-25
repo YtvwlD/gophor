@@ -31,9 +31,9 @@ type FileSystemRequest struct {
  */
 type File struct {
     contents    FileContents
-    mutex       sync.RWMutex
-    isFresh     bool
-    lastRefresh int64
+    Mutex       sync.RWMutex
+    Fresh       bool
+    LastRefresh int64
 }
 
 func NewFile(contents FileContents) *File {
@@ -60,38 +60,10 @@ func (f *File) LoadContents() *GophorError {
     }
 
     /* Update lastRefresh, set fresh, unset deletion (not likely set) */
-    f.lastRefresh = time.Now().UnixNano()
-    f.isFresh     = true
+    f.LastRefresh = time.Now().UnixNano()
+    f.Fresh       = true
 
     return nil
-}
-
-func (f *File) IsFresh() bool {
-    return f.isFresh
-}
-
-func (f *File) SetUnfresh() {
-    f.isFresh = false
-}
-
-func (f *File) LastRefresh() int64 {
-    return f.lastRefresh
-}
-
-func (f *File) Lock() {
-    f.mutex.Lock()
-}
-
-func (f *File) Unlock() {
-    f.mutex.Unlock()
-}
-
-func (f *File) RLock() {
-    f.mutex.RLock()
-}
-
-func (f *File) RUnlock() {
-    f.mutex.RUnlock()
 }
 
 /* FileContents:
