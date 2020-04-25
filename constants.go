@@ -2,7 +2,7 @@ package main
 
 const (
     /* Gophor */
-    GophorVersion = "0.4-alpha-PR"
+    GophorVersion = "0.4-alpha-PR2"
 
     /* Parsing */
     DOSLineEnd = "\r\n"
