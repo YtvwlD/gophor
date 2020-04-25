@@ -176,11 +176,13 @@ files.
 
 ## Placeholder text
 
-Selector: `-`
+All of the following are used as placeholder text in responses...
 
-Host: `null.host`
+Null selector: `-`
 
-Port: `0`
+Null host: `null.host`
+
+Null port: `0`
 
 # Todos
 
