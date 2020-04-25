@@ -202,9 +202,6 @@ Shortterm:
   -- need to either rethink how we keep track of files, or rethink how
   gophermaps are stored in memory.
 
-- Improve responding to policy files + URL redirects -- need to rethink the
-  worker + response logic.
-
 - Add more files to file extension map
 
 Longterm:
