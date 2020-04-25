@@ -94,7 +94,7 @@ func (fc *FileCache) FetchRegular(request *FileSystemRequest) ([]byte, *GophorEr
 func (fc *FileCache) FetchGophermap(request *FileSystemRequest) ([]byte, *GophorError) {
     /* Calls fc.Fetch() but with the filecontents init function for a gophermap */
     return fc.Fetch(request, func(path string) FileContents {
-        return &RegularFileContents{
+        return &GophermapContents{
             path,
             nil,
         }
