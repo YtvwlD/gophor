@@ -93,17 +93,15 @@ type GophermapSection interface {
  * onto a static section of text as a slice of bytes.
  */
 type GophermapText struct {
-    contents []byte
+    Contents []byte
 }
 
 func NewGophermapText(contents []byte) *GophermapText {
-    s := new(GophermapText)
-    s.contents = contents
-    return s
+    return &GophermapText{ contents }
 }
 
 func (s *GophermapText) Render(request *FileSystemRequest) ([]byte, *GophorError) {
-    return replaceStrings(string(s.contents), request.Host), nil
+    return replaceStrings(string(s.Contents), request.Host), nil
 }
 
 /* GophermapDirListing:
@@ -113,21 +111,19 @@ func (s *GophermapText) Render(request *FileSystemRequest) ([]byte, *GophorError
  * Render() call is received.
  */
 type GophermapDirListing struct {
-    path   string
+    Path   string
     Hidden map[string]bool
 }
 
 func NewGophermapDirListing(path string) *GophermapDirListing {
-    s := new(GophermapDirListing)
-    s.path = path
-    return s
+    return &GophermapDirListing{ path, nil }
 }
 
 func (s *GophermapDirListing) Render(request *FileSystemRequest) ([]byte, *GophorError) {
     /* We could just pass the request directly, but in case the request
      * path happens to differ for whatever reason we create a new one
      */
-    return listDir(&FileSystemRequest{ s.path, request.Host }, s.Hidden)
+    return listDir(&FileSystemRequest{ s.Path, request.Host }, s.Hidden)
 }
 
 func readGophermap(path string) ([]GophermapSection, *GophorError) {

@@ -52,8 +52,7 @@ func main() {
 
                 /* Run this in it's own goroutine so we can go straight back to accepting */
                 go func() {
-                    w := NewWorker(newConn)
-                    w.Serve()
+                    NewWorker(newConn).Serve()
                 }()
             }
         }()

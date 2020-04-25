@@ -70,18 +70,20 @@ func (fc *FileCache) Init(size int, fileSizeMax float64) {
 func (fc *FileCache) FetchRegular(request *FileSystemRequest) ([]byte, *GophorError) {
     /* Calls fc.Fetch() but with the filecontents init function for a regular file */
     return fc.Fetch(request, func(path string) FileContents {
-        contents := new(RegularFileContents)
-        contents.path = path
-        return contents
+        return &RegularFileContents{
+            path,
+            nil,
+        }
     })
 }
 
 func (fc *FileCache) FetchGophermap(request *FileSystemRequest) ([]byte, *GophorError) {
     /* Calls fc.Fetch() but with the filecontents init function for a gophermap */
     return fc.Fetch(request, func(path string) FileContents {
-        contents := new(GophermapContents)
-        contents.path = path
-        return contents
+        return &RegularFileContents{
+            path,
+            nil,
+        }
     })
 }
 
@@ -132,9 +134,7 @@ func (fc *FileCache) Fetch(request *FileSystemRequest, newFileContents func(stri
         /* Create new file wrapper around contents */
         file = NewFile(contents)
 
-        /* NOTE: file isn't in cache yet so no need to lock file write mutex
-         * before loading contents from disk
-         */
+        /* File isn't in cache yet so no need to get file lock mutex */
         gophorErr := file.LoadContents()
         if gophorErr != nil {
             /* Error loading contents, unlock read mutex then return error */

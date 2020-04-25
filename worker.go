@@ -23,70 +23,66 @@ type Worker struct {
 }
 
 func NewWorker(conn *GophorConn) *Worker {
-    worker := new(Worker)
-    worker.Conn = conn
-    return worker
+    return &Worker{ conn }
 }
 
 func (worker *Worker) Serve() {
-    go func() {
-        defer func() {
-            /* Close-up shop */
-            worker.Conn.Close()
-        }()
-
-        var count int
-        var err error
-
-        /* Read buffer + final result */
-        buf := make([]byte, SocketReadBufSize)
-        received := make([]byte, 0)
-
-        iter := 0
-        for {
-            /* Buffered read from listener */
-            count, err = worker.Conn.Read(buf)
-            if err != nil {
-                Config.LogSystemError("Error reading from socket on port %s: %s\n", worker.Conn.Host.Port, err.Error())
-                return
-            }
-
-            /* Only copy non-null bytes */
-            received = append(received, buf[:count]...)
-
-            /* If count is less than expected read size, we've hit EOF */
-            if count < SocketReadBufSize {
-                /* EOF */
-                break
-            }
-
-            /* Hit max read chunk size, send error + close connection */
-            if iter == MaxSocketReadChunks {
-                Config.LogSystemError("Reached max socket read size %d. Closing connection...\n", MaxSocketReadChunks*SocketReadBufSize)
-                return
-            }
-
-            /* Keep count :) */
-            iter += 1
-        }
-
-        /* Handle request */
-        gophorErr := worker.RespondGopher(received)
-
-        /* Handle any error */
-        if gophorErr != nil {
-            Config.LogSystemError("%s\n", gophorErr.Error())
-
-            /* Generate response bytes from error code */
-            response := generateGopherErrorResponseFromCode(gophorErr.Code)
-
-            /* If we got response bytes to send? SEND 'EM! */
-            if response != nil {
-                /* No gods. No masters. We don't care about error checking here */
-                worker.SendRaw(response)
-            }
-        }
+    defer func() {
+        /* Close-up shop */
+        worker.Conn.Close()
     }()
+
+    var count int
+    var err error
+
+    /* Read buffer + final result */
+    buf := make([]byte, SocketReadBufSize)
+    received := make([]byte, 0)
+
+    iter := 0
+    for {
+        /* Buffered read from listener */
+        count, err = worker.Conn.Read(buf)
+        if err != nil {
+            Config.LogSystemError("Error reading from socket on port %s: %s\n", worker.Conn.Host.Port, err.Error())
+            return
+        }
+
+        /* Only copy non-null bytes */
+        received = append(received, buf[:count]...)
+
+        /* If count is less than expected read size, we've hit EOF */
+        if count < SocketReadBufSize {
+            /* EOF */
+            break
+        }
+
+        /* Hit max read chunk size, send error + close connection */
+        if iter == MaxSocketReadChunks {
+            Config.LogSystemError("Reached max socket read size %d. Closing connection...\n", MaxSocketReadChunks*SocketReadBufSize)
+            return
+        }
+
+        /* Keep count :) */
+        iter += 1
+    }
+
+    /* Handle request */
+    gophorErr := worker.RespondGopher(received)
+
+    /* Handle any error */
+    if gophorErr != nil {
+        Config.LogSystemError("%s\n", gophorErr.Error())
+
+        /* Generate response bytes from error code */
+        response := generateGopherErrorResponseFromCode(gophorErr.Code)
+
+        /* If we got response bytes to send? SEND 'EM! */
+        if response != nil {
+            /* No gods. No masters. We don't care about error checking here */
+            worker.SendRaw(response)
+        }
+    }
 }
 
 func (worker *Worker) SendRaw(b []byte) *GophorError {
@@ -111,12 +107,12 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     /* According to Gopher spec, only read up to first Tab or Crlf */
     dataStr := readUpToFirstTabOrCrlf(data)
 
-    /* Handle URL request if so. TODO: this is so unelegant... */
+    /* Handle URL request if presented */
     lenBefore := len(dataStr)
     dataStr = strings.TrimPrefix(dataStr, "URL:")
     switch len(dataStr) {
         case lenBefore-4:
-            /* Handle URL prefix */
+            /* Send an HTML redirect to supplied URL */
             worker.Log("Redirecting to URL: %s\n", data)
             return worker.SendRaw(generateHtmlRedirect(dataStr))
         default:

@@ -37,12 +37,12 @@ type File struct {
 }
 
 func NewFile(contents FileContents) *File {
-    f := new(File)
-    f.contents    = contents
-    f.mutex       = sync.RWMutex{}
-    f.isFresh     = true
-    f.lastRefresh = 0
-    return f
+    return &File{ 
+        contents,
+        sync.RWMutex{},
+        true,
+        0,
+    }
 }
 
 func (f *File) Contents(request *FileSystemRequest) []byte {
