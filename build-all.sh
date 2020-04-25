@@ -105,7 +105,5 @@ echo "Building for linux ppc64le..."
 filename="${OUTDIR}/${PROJECT}.${VERSION}_linux.ppc64le_${GOVERSION}"
 CGO_ENABLED=1 CC='powerpc64le-linux-musl-gcc'  GOOS='linux' GOARCH='ppc64le'      go build -trimpath -o "$filename"  -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
 upx --best "$filename"
-upx -t "$filename
+upx -t "$filename"
 echo ""
-
-echo "PLEASE DON'T JUDGE THIS SCRIPT, IT IS TRULY SO AWFUL. TO BE IMPROVED..."
