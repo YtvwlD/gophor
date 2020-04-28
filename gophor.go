@@ -94,6 +94,7 @@ func setupServer() []*GophorListener {
     cacheCheckFreq    := flag.String("cache-check", "60s", "Change file cache freshness check frequency.")
     cacheSize         := flag.Int("cache-size", 50, "Change file cache size, measured in file count.")
     cacheFileSizeMax  := flag.Float64("cache-file-max", 0.5, "Change maximum file size to be cached (in megabytes).")
+    cacheDisabled     := flag.Bool("disable-cache", false, "Disable file caching.")
 
     /* Version string */
     version           := flag.Bool("version", false, "Print version information.")
@@ -173,23 +174,36 @@ func setupServer() []*GophorListener {
         listDir = _listDir
     }
 
-    /* Parse suppled cache check frequency time */
-    fileMonitorSleepTime, err := time.ParseDuration(*cacheCheckFreq)
-    if err != nil {
-        Config.LogSystemFatal("Error parsing supplied cache check frequency %s: %s\n", *cacheCheckFreq, err)
-    }
-
     /* Setup file cache */
     Config.FileCache = new(FileCache)
-    Config.FileCache.Init(*cacheSize, *cacheFileSizeMax)
 
-    /* Before file monitor or any kind of new goroutines started,
-     * check if we need to cache generated policy files
-     */
-    cachePolicyFiles()
+    if !*cacheDisabled {
+        /* Parse suppled cache check frequency time */
+        fileMonitorSleepTime, err := time.ParseDuration(*cacheCheckFreq)
+        if err != nil {
+            Config.LogSystemFatal("Error parsing supplied cache check frequency %s: %s\n", *cacheCheckFreq, err)
+        }
 
-    /* Start file cache freshness checker */
-    go startFileMonitor(fileMonitorSleepTime)
+        /* Init file cache */
+        Config.FileCache.Init(*cacheSize, *cacheFileSizeMax)
+        Config.LogSystem("File caching enabled with: maxcount=%d maxsize=%.3fMB\n", *cacheSize, *cacheFileSizeMax)
+
+        /* Before file monitor or any kind of new goroutines started,
+         * check if we need to cache generated policy files
+         */
+        cachePolicyFiles()
+
+        /* Start file cache freshness checker */
+        go startFileMonitor(fileMonitorSleepTime)
+        Config.LogSystem("File cache freshness monitor started with frequency: %s\n", fileMonitorSleepTime)
+    } else {
+        /* File caching disabled, init with zero max size so nothing gets cached */
+        Config.FileCache.Init(2, 0)
+        Config.LogSystem("File caching disabled\n")
+
+        /* Safe to cache policy files now */
+        cachePolicyFiles()
+    }
 
     /* Return the created listeners slice :) */
     return listeners
