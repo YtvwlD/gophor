@@ -35,6 +35,7 @@ gophor [args]
        -description    Change server description in auto generated caps.txt.
        -admin-email    Change admin email in auto generated caps.txt.
        -geoloc         Change geolocation in auto generated caps.txt.
+       -version        Print version string.
 ```
 
 # Features
