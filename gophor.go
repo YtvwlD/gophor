@@ -95,8 +95,15 @@ func setupServer() []*GophorListener {
     cacheSize         := flag.Int("cache-size", 50, "Change file cache size, measured in file count.")
     cacheFileSizeMax  := flag.Float64("cache-file-max", 0.5, "Change maximum file size to be cached (in megabytes).")
 
+    /* Version string */
+    version           := flag.Bool("version", false, "Print version information.")
+
     /* Parse parse parse!! */
     flag.Parse()
+    if *version {
+        log.Printf("%s\n", GophorVersion)
+        os.Exit(0)
+    }
 
     /* Setup the server configuration instance and enter as much as we can right now */
     Config = new(ServerConfig)
