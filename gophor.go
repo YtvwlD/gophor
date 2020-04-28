@@ -101,8 +101,7 @@ func setupServer() []*GophorListener {
     /* Parse parse parse!! */
     flag.Parse()
     if *version {
-        log.Printf("%s\n", GophorVersion)
-        os.Exit(0)
+        printVersionExit()
     }
 
     /* Setup the server configuration instance and enter as much as we can right now */

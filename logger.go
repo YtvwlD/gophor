@@ -63,3 +63,10 @@ func setupLogging(loggingType int, systemLogPath, accessLogPath string) (*log.Lo
 
     return systemLogger, accessLogger
 }
+
+func printVersionExit() {
+    /* Reset the flags before printing version */
+    log.SetFlags(0)
+    log.Printf("%s\n", GophorVersion)
+    os.Exit(0)
+}
