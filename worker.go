@@ -126,7 +126,7 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     if gophorErr != nil {
         return gophorErr
     }
-    Config.LogSystem("Served: %s\n", requestPath)
+    worker.Log("served: %s\n", requestPath)
 
     /* Serve response */
     return worker.SendRaw(response)

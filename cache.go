@@ -86,7 +86,7 @@ func (fs *FileSystem) Init(size int, fileSizeMax float64) {
 func (fs *FileSystem) HandleRequest(requestPath string, host *ConnHost) ([]byte, *GophorError) {
     /* Stat filesystem for request file type */
     fileType := FileTypeDir;
-    if requestPath != "." {
+    if requestPath != "/" {
         stat, err := os.Stat(requestPath)
         if err != nil {
             /* Check file isn't in cache before throwing in the towel */
@@ -110,8 +110,11 @@ func (fs *FileSystem) HandleRequest(requestPath string, host *ConnHost) ([]byte,
         switch {
             case stat.Mode() & os.ModeDir != 0:
                 /* do nothing, already set :) */
+                break
+
             case stat.Mode() & os.ModeType == 0:
                 fileType = FileTypeRegular
+
             default:
                 fileType = FileTypeBad
         }
