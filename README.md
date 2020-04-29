@@ -189,19 +189,7 @@ Null port: `0`
 
 Shortterm:
 
-- Add last-mod-time to directory listings -- have global time parser
-  object, maybe separate out separate global instances of objects (e.g.
-  worker related, cache related, config related?)
-
-- Rotating logs -- have a check on start for a file-size, rotate out if the
-  file is too large. Possibly checks during run-time too?
-
 - Set default charset -- need to think about implementation here...
-
-- Finish inline shell scripting support -- current thinking is to either
-  perform a C fork very early on, or create a separate modules binary, and
-  either way the 2 processes interact via some IPC method. Could allow for
-  other modules too.
 
 - Fix file cache only updating if main gophermap changes (but not sub files)
   -- need to either rethink how we keep track of files, or rethink how
@@ -210,6 +198,18 @@ Shortterm:
 - Add more files to file extension map
 
 Longterm:
+
+- Finish inline shell scripting support -- current thinking is to either
+  perform a C fork very early on, or create a separate modules binary, and
+  either way the 2 processes interact via some IPC method. Could allow for
+  other modules too.
+
+- Rotating logs -- have a check on start for a file-size, rotate out if the
+  file is too large. Possibly checks during run-time too?
+
+- Add last-mod-time to directory listings -- have global time parser
+  object, maybe separate out separate global instances of objects (e.g.
+  worker related, cache related, config related?)
 
 - TLS support -- ~~requires a rethink of how we're passing port functions
   generating gopher directory entries, also there is no definitive standard
