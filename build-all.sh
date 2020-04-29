@@ -3,10 +3,10 @@
 set -e
 
 PROJECT='gophor'
-OUTDIR='build'
 VERSION="$(cat 'constants.go' | grep -E '^\s*GophorVersion' | sed -e 's|\s*GophorVersion = \"||' -e 's|\"\s*$||')"
 GOVERSION="$(go version | sed -e 's|^go version go||' -e 's|\s.*$||')"
 LOGFILE='build.log'
+OUTDIR="build-${VERSION}"
 
 silent() {
     "$@" > "$LOGFILE" 2>&1
