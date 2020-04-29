@@ -15,11 +15,6 @@ type ServerConfig struct {
     /* Base settings */
     RootDir         string
 
-    /* Caps.txt information */
-    Description     string
-    AdminEmail      string
-    Geolocation     string
-
     /* Content settings */
     PageWidth       int
     RestrictedFiles []*regexp.Regexp
@@ -29,7 +24,7 @@ type ServerConfig struct {
     AccessLogger    *log.Logger
 
     /* Cache */
-    FileCache       *FileCache
+    FileSystem      *FileSystem
 }
 
 func (config *ServerConfig) LogSystem(fmt string, args ...interface{}) {

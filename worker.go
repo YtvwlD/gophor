@@ -1,7 +1,6 @@
 package main
 
 import (
-    "os"
     "path"
     "strings"
 )
@@ -122,90 +121,12 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     /* Sanitize supplied path */
     requestPath := sanitizePath(dataStr)
 
-    /* Handle policy files. TODO: this is so unelegant... */
-    switch requestPath {
-        case "/"+CapsTxtStr:
-            return worker.SendRaw(generateCapsTxt())
-
-        case "/"+RobotsTxtStr:
-            return worker.SendRaw(generateRobotsTxt())
-    }
-
-    /* Open requestPath */
-    file, err := os.Open(requestPath)
-    if err != nil {
-        return &GophorError{ FileOpenErr, err }
-    }
-
-    /* If not empty requestPath, check file type.
-     * Default type is directory.
-     */
-    fileType := FileTypeDir
-    if requestPath != "." {
-        stat, err := file.Stat()
-        if err != nil {
-            return &GophorError{ FileStatErr, err }
-        }
-
-        switch {
-            case stat.Mode() & os.ModeDir != 0:
-                // do nothing :)
-            case stat.Mode() & os.ModeType == 0:
-                fileType = FileTypeRegular
-            default:
-                fileType = FileTypeBad
-        }
-    }
-
-    /* Don't need the file handle anymore */
-    file.Close()
-
-    /* Handle file type. TODO: work on efficiency */
-    response := make([]byte, 0)
-    switch fileType {
-        /* Directory */
-        case FileTypeDir:
-            /* First try to serve gopher map */
-            gophermapPath := path.Join(requestPath, "/"+GophermapFileStr)
-            fileContents, gophorErr := Config.FileCache.FetchGophermap(&FileSystemRequest{ gophermapPath, worker.Conn.Host })
-            if gophorErr != nil {
-                /* Get directory listing instead */
-                fileContents, gophorErr = listDir(&FileSystemRequest{ requestPath, worker.Conn.Host }, map[string]bool{})
-                if gophorErr != nil {
-                    return gophorErr
-                }
-
-                /* Add fileContents to response */
-                response = append(response, fileContents...)
-                worker.Log("serve dir: %s\n", requestPath)
-
-                /* Finish directory listing with LastLine */
-                response = append(response, []byte(LastLine)...)
-            } else {
-                /* Successfully loaded gophermap, add fileContents to response */
-                response = append(response, fileContents...)
-                worker.Log("serve gophermap: %s\n", gophermapPath)
-            }
-
-        /* Regular file */
-        case FileTypeRegular:
-            /* Read file contents */
-            fileContents, gophorErr := Config.FileCache.FetchRegular(&FileSystemRequest{ requestPath, worker.Conn.Host })
-            if gophorErr != nil {
-                return gophorErr
-            }
-
-            /* Append fileContents to response */
-            response = append(response, fileContents...)
-            worker.Log("serve file: %s\n", requestPath)
-
-        /* Unsupport file type */
-        default:
-            return &GophorError{ FileTypeErr, nil }
-    }
-
     /* Append lastline */
-    response = append(response, []byte(LastLine)...)
+    response, gophorErr := Config.FileSystem.HandleRequest(requestPath, worker.Conn.Host)
+    if gophorErr != nil {
+        return gophorErr
+    }
+    Config.LogSystem("Served: %s\n", requestPath)
 
     /* Serve response */
     return worker.SendRaw(response)

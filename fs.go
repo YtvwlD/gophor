@@ -270,6 +270,9 @@ func _listDirBase(request *FileSystemRequest, iterFunc func(dirContents *[]byte,
     /* Walk through files :D */
     for _, file := range files { iterFunc(&dirContents, file) }
 
+    /* Append last line */
+    dirContents = append(dirContents, []byte(LastLine)...)
+
     return dirContents, nil
 }
 

@@ -108,9 +108,6 @@ func setupServer() []*GophorListener {
     /* Setup the server configuration instance and enter as much as we can right now */
     Config = new(ServerConfig)
     Config.RootDir     = *serverRoot
-    Config.Description = *serverDescription
-    Config.AdminEmail  = *serverAdmin
-    Config.Geolocation = *serverGeoloc
     Config.PageWidth   = *pageWidth
 
     /* Setup Gophor logging system */
@@ -175,7 +172,7 @@ func setupServer() []*GophorListener {
     }
 
     /* Setup file cache */
-    Config.FileCache = new(FileCache)
+    Config.FileSystem = new(FileSystem)
 
     if !*cacheDisabled {
         /* Parse suppled cache check frequency time */
@@ -185,24 +182,24 @@ func setupServer() []*GophorListener {
         }
 
         /* Init file cache */
-        Config.FileCache.Init(*cacheSize, *cacheFileSizeMax)
+        Config.FileSystem.Init(*cacheSize, *cacheFileSizeMax)
         Config.LogSystem("File caching enabled with: maxcount=%d maxsize=%.3fMB\n", *cacheSize, *cacheFileSizeMax)
 
         /* Before file monitor or any kind of new goroutines started,
          * check if we need to cache generated policy files
          */
-        cachePolicyFiles()
+        cachePolicyFiles(*serverDescription, *serverAdmin, *serverGeoloc)
 
         /* Start file cache freshness checker */
         go startFileMonitor(fileMonitorSleepTime)
         Config.LogSystem("File cache freshness monitor started with frequency: %s\n", fileMonitorSleepTime)
     } else {
         /* File caching disabled, init with zero max size so nothing gets cached */
-        Config.FileCache.Init(2, 0)
+        Config.FileSystem.Init(2, 0)
         Config.LogSystem("File caching disabled\n")
 
         /* Safe to cache policy files now */
-        cachePolicyFiles()
+        cachePolicyFiles(*serverDescription, *serverAdmin, *serverGeoloc)
     }
 
     /* Return the created listeners slice :) */
