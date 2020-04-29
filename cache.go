@@ -123,10 +123,11 @@ func (fs *FileSystem) HandleRequest(requestPath string, host *ConnHost) ([]byte,
     switch fileType {
         /* Directory */
         case FileTypeDir:
-            _, err := os.Stat(path.Join(requestPath, GophermapFileStr))
+            gophermapPath := path.Join(requestPath, GophermapFileStr)
+            _, err := os.Stat(gophermapPath)
             if err == nil {
                 /* Gophermap exists, serve this! */
-                return fs.FetchFile(&FileSystemRequest{ requestPath, host })
+                return fs.FetchFile(&FileSystemRequest{ gophermapPath, host })
             } else {
                 /* No gophermap, serve directory listing */
                 return listDir(&FileSystemRequest{ requestPath, host }, map[string]bool{})
