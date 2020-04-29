@@ -1,4 +1,4 @@
 gophor
 *.log
 *.old
-build/
+build*/
