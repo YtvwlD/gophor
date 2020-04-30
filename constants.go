@@ -2,7 +2,7 @@ package main
 
 const (
     /* Gophor */
-    GophorVersion = "0.5-alpha-PR3"
+    GophorVersion = "0.5-alpha-PR4"
 
     /* Socket settings */
     SocketReadBufSize   = 256 /* Supplied selector shouldn't be longer than this anyways */
