@@ -100,7 +100,7 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     switch len(dataStr) {
         case lenBefore-4:
             /* Send an HTML redirect to supplied URL */
-            worker.Log("Redirecting to URL: %s\n", data)
+            worker.Log("Redirecting to: %s\n", data)
             return worker.SendRaw(generateHtmlRedirect(dataStr))
         default:
             /* Do nothing */
