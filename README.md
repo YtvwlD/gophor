@@ -192,8 +192,6 @@ Shortterm:
   -- need to either rethink how we keep track of files, or rethink how
   gophermaps are stored in memory.
 
-- Add more files to file extension map
-
 Longterm:
 
 - Finish inline shell scripting support -- current thinking is to either
@@ -218,7 +216,7 @@ Longterm:
   remove from list when `lastIncremented` time is greater than timeout
 
 - Header + footer text -- read in file / input string and format, hold in
-  memory than append to end of gophermaps / dir listings
+  memory then append to end of gophermaps / dir listings
 
 - More closely follow GoLang built-in net/http code style for worker -- just
   a neatness thing, maybe bring some performance improvements too and a
