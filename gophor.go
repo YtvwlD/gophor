@@ -77,13 +77,13 @@ func setupServer() []*GophorListener {
     execAs            := flag.String("user", "", "Drop to supplied user's UID and GID permissions before execution.")
 
     /* User supplied caps.txt information */
-    serverDescription := flag.String("description", "Gophor: a Gopher server in GoLang", "Change server description in auto-generated caps.txt.")
-    serverAdmin       := flag.String("admin-email", "", "Change admin email in auto-generated caps.txt.")
-    serverGeoloc      := flag.String("geoloc", "", "Change server gelocation string in auto-generated caps.txt.")
+    serverDescription := flag.String("description", "Gophor: a Gopher server in GoLang", "Change server description in generated caps.txt.")
+    serverAdmin       := flag.String("admin-email", "", "Change admin email in generated caps.txt.")
+    serverGeoloc      := flag.String("geoloc", "", "Change server gelocation string in generated caps.txt.")
 
     /* Content settings */
     footerText        := flag.String("footer", "Running Gophor, a Gopher server in Go.", "Change gophermap footer text (Unix new-line separated lines).")
-    footerSeparator   := flag.Bool("no-footer-separator", false, "Disable footer text line separator.")
+    footerSeparator   := flag.Bool("no-footer-separator", false, "Disable footer line separator.")
 
     pageWidth         := flag.Int("page-width", 80, "Change page width used when formatting output.")
     restrictedFiles   := flag.String("restrict-files", "", "New-line separated list of regex statements restricting files from showing in directory listings.")
