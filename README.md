@@ -10,6 +10,8 @@ I'm unemployed and work on open-source projects like this and many others for
 free. If you would like to help support my work that would be hugely
 appreciated 💕 https://liberapay.com/grufwub/
 
+`gophor-run` is an example script to help with automation of gophor.
+
 WARNING: the development branch is filled with lava, fear and capitalism.
 
 # Usage

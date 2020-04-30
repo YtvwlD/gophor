@@ -3,7 +3,7 @@
 PIDFILE='/tmp/gophor.pid'
 
 GOPHOR='./gophor'
-LOGDIR='/dev/shm/gophor'
+LOGDIR='/var/log/gophor'
 
 BINDADDR=''
 PORT=70
@@ -26,19 +26,18 @@ usage() {
 start() {
     local exec_flags
 
-    # If logdir set, set log files. (else will output to stderr)
     if [ "$LOGDIR" = '' ]; then
-        echo 'LOGDIR variable must not be empty!'
-        exit 1
-    fi
+        # If log dir not set, disable logging
+        exec_flags="$exec_flags -log-type 1"
+    else
+        # Add log file paths
+        exec_flags="$exec_flags -system-log "${LOGDIR}/system.log" -access-log "${LOGDIR}/access.log""
 
-    # Add log file paths
-    exec_flags="$exec_flags -system-log "${LOGDIR}/system.log" -access-log "${LOGDIR}/access.log""
-
-    # If log dir doesn't exist, try make it!
-    if [ ! -d "$LOGDIR" ] && !(mkdir "$LOGDIR" > /dev/null 2>&1) && !(sudo mkdir "$LOGDIR" > /dev/null 2>&1); then
-        echo "Log file directory does not exist, and failed to create: $LOGDIR"
-        exit 1
+        # If log dir doesn't exist, try make it!
+        if [ ! -d "$LOGDIR" ] && !(mkdir "$LOGDIR" > /dev/null 2>&1) && !(sudo mkdir "$LOGDIR" > /dev/null 2>&1); then
+            echo "Log file directory does not exist, and failed to create: $LOGDIR"
+            exit 1
+        fi
     fi
 
     # Add bind addr (no worries if empty)
