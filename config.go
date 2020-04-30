@@ -40,9 +40,9 @@ func (config *ServerConfig) LogSystemFatal(fmt string, args ...interface{}) {
 }
 
 func (config *ServerConfig) LogAccess(sourceAddr, fmt string, args ...interface{}) {
-    config.AccessLogger.Printf(":: I :: ("+sourceAddr+") "+fmt, args...)
+    config.AccessLogger.Printf(":: I :: ["+sourceAddr+"] "+fmt, args...)
 }
 
 func (config *ServerConfig) LogAccessError(sourceAddr, fmt string, args ...interface{}) {
-    config.AccessLogger.Printf(":: E :: ("+sourceAddr+") "+fmt, args...)
+    config.AccessLogger.Printf(":: E :: ["+sourceAddr+"] "+fmt, args...)
 }

@@ -100,7 +100,7 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     switch len(dataStr) {
         case lenBefore-4:
             /* Send an HTML redirect to supplied URL */
-            worker.Log("Redirecting to %s\n", data)
+            worker.Log("Redirecting to %s\n", dataStr)
             return worker.SendRaw(generateHtmlRedirect(dataStr))
         default:
             /* Do nothing */
@@ -112,9 +112,10 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     /* Append lastline */
     response, gophorErr := Config.FileSystem.HandleRequest(requestPath, worker.Conn.Host)
     if gophorErr != nil {
+        worker.LogError("Failed to serve: %s\n", requestPath)
         return gophorErr
     }
-    worker.Log("served: %s\n", requestPath)
+    worker.Log("Served: %s\n", requestPath)
 
     /* Serve response */
     return worker.SendRaw(response)
@@ -132,8 +133,6 @@ func readUpToFirstTabOrCrlf(data []byte) string {
                 if i == dataLen-1 || data[i+1] == DOSLineEnd[1] {
                     return dataStr
                 }
-            case UnixLineEnd[0]:
-                return dataStr
             default:
                 dataStr += string(data[i])
         }
