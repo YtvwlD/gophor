@@ -16,23 +16,46 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 ```
 gophor [args]
-       -root           Change server root directory.
-       -port           Change server NON-TLS listening port.
-       -hostname       Change server hostname (FQDN, used to craft dir lists).
-       -bind-addr      Change server bind-address (used in creating socket).
-       -user           Drop to supplied user's UID and GID permissions before execution.
-       -system-log     Path to gophor system log file, else use stderr.
-       -access-log     Path to gophor access log file, else use stderr.
-       -cache-check    Change file-cache freshness check frequency.
-       -cache-size     Change max no. files in file-cache.
-       -cache-file-max Change maximum allowed size of a cached file.
-       -page-width     Change page width used when formatting output.
-       -restrict-files New-line separated list of regex statements restricting
-                       files from showing in directory listing.
-       -description    Change server description in auto generated caps.txt.
-       -admin-email    Change admin email in auto generated caps.txt.
-       -geoloc         Change geolocation in auto generated caps.txt.
-       -version        Print version string.
+       -root                Change server root directory.
+
+       -port                Change server NON-TLS listening port.
+
+       -hostname            Change server hostname (FQDN, used to craft dir
+                            lists).
+
+       -bind-addr           Change server bind-address (used in creating
+                            socket).
+
+       -user                Drop to supplied user's UID and GID permissions
+                            before execution.
+
+       -system-log          Path to gophor system log file, else use stderr.
+
+       -access-log          Path to gophor access log file, else use stderr.
+
+       -cache-check         Change file-cache freshness check frequency.
+
+       -cache-size          Change max no. files in file-cache.
+
+       -cache-file-max      Change maximum allowed size of a cached file.
+
+       -page-width          Change page width used when formatting output.
+
+       -footer              Change gophermap footer text (Unix new-line
+                            separated lines).
+
+       -no-footer-separator Disable footer text line separator.
+
+       -restrict-files      New-line separated list of regex statements
+                            restricting files from showing in directory listing.
+
+       -description         Change server description in generated caps.txt.
+
+       -admin-email         Change admin email in generated caps.txt.
+
+       -geoloc              Change geolocation in generated caps.txt.
+
+       -version             Print version string.
 ```
 
 # Features
@@ -214,9 +237,6 @@ Longterm:
 - Connection throttling + timeouts -- thread to keep track of list of
   recently connected IPs. Keep incremementing connection count and only
   remove from list when `lastIncremented` time is greater than timeout
-
-- Header + footer text -- read in file / input string and format, hold in
-  memory then append to end of gophermaps / dir listings
 
 - More closely follow GoLang built-in net/http code style for worker -- just
   a neatness thing, maybe bring some performance improvements too and a
