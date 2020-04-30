@@ -43,6 +43,8 @@ func main() {
     /* Start accepting connections on any supplied listeners */
     for _, l := range listeners {
         go func() {
+            Config.LogSystem("Listening on: gopher://%s\n", l.Addr())
+
             for {
                 newConn, err := l.Accept()
                 if err != nil {
@@ -52,8 +54,7 @@ func main() {
 
                 /* Run this in it's own goroutine so we can go straight back to accepting */
                 go func() {
-                    w := NewWorker(newConn)
-                    w.Serve()
+                    NewWorker(newConn).Serve()
                 }()
             }
         }()
@@ -76,11 +77,14 @@ func setupServer() []*GophorListener {
     execAs            := flag.String("user", "", "Drop to supplied user's UID and GID permissions before execution.")
 
     /* User supplied caps.txt information */
-    serverDescription := flag.String("description", "Gophor: a Gopher server in GoLang", "Change server description in auto-generated caps.txt.")
-    serverAdmin       := flag.String("admin-email", "", "Change admin email in auto-generated caps.txt.")
-    serverGeoloc      := flag.String("geoloc", "", "Change server gelocation string in auto-generated caps.txt.")
+    serverDescription := flag.String("description", "Gophor: a Gopher server in GoLang", "Change server description in generated caps.txt.")
+    serverAdmin       := flag.String("admin-email", "", "Change admin email in generated caps.txt.")
+    serverGeoloc      := flag.String("geoloc", "", "Change server gelocation string in generated caps.txt.")
 
     /* Content settings */
+    footerText        := flag.String("footer", "", "Change gophermap footer text (Unix new-line separated lines).")
+    footerSeparator   := flag.Bool("no-footer-separator", false, "Disable footer line separator.")
+
     pageWidth         := flag.Int("page-width", 80, "Change page width used when formatting output.")
     restrictedFiles   := flag.String("restrict-files", "", "New-line separated list of regex statements restricting files from showing in directory listings.")
 
@@ -93,17 +97,24 @@ func setupServer() []*GophorListener {
     cacheCheckFreq    := flag.String("cache-check", "60s", "Change file cache freshness check frequency.")
     cacheSize         := flag.Int("cache-size", 50, "Change file cache size, measured in file count.")
     cacheFileSizeMax  := flag.Float64("cache-file-max", 0.5, "Change maximum file size to be cached (in megabytes).")
+    cacheDisabled     := flag.Bool("disable-cache", false, "Disable file caching.")
+
+    /* Version string */
+    version           := flag.Bool("version", false, "Print version information.")
 
     /* Parse parse parse!! */
     flag.Parse()
+    if *version {
+        printVersionExit()
+    }
 
     /* Setup the server configuration instance and enter as much as we can right now */
     Config = new(ServerConfig)
     Config.RootDir     = *serverRoot
-    Config.Description = *serverDescription
-    Config.AdminEmail  = *serverAdmin
-    Config.Geolocation = *serverGeoloc
     Config.PageWidth   = *pageWidth
+
+    /* Have to be set AFTER page width variable set */
+    Config.FooterText  = formatGophermapFooter(*footerText, !*footerSeparator)
 
     /* Setup Gophor logging system */
     Config.SystemLogger, Config.AccessLogger = setupLogging(*logType, *systemLogPath, *accessLogPath)
@@ -146,7 +157,6 @@ func setupServer() []*GophorListener {
         if err != nil {
             Config.LogSystemFatal("Error setting up (unencrypted) listener: %s\n", err.Error())
         }
-        Config.LogSystem("Listening (unencrypted): gopher://%s\n", l.Addr())
         listeners = append(listeners, l)
     } else {
         Config.LogSystemFatal("No valid port to listen on :(\n")
@@ -167,18 +177,36 @@ func setupServer() []*GophorListener {
         listDir = _listDir
     }
 
-    /* Parse suppled cache check frequency time */
-    fileMonitorSleepTime, err := time.ParseDuration(*cacheCheckFreq)
-    if err != nil {
-        Config.LogSystemFatal("Error parsing supplied cache check frequency %s: %s\n", *cacheCheckFreq, err)
-    }
-
     /* Setup file cache */
-    Config.FileCache = new(FileCache)
-    Config.FileCache.Init(*cacheSize, *cacheFileSizeMax)
+    Config.FileSystem = new(FileSystem)
 
-    /* Start file cache freshness checker */
-    go startFileMonitor(fileMonitorSleepTime)
+    if !*cacheDisabled {
+        /* Parse suppled cache check frequency time */
+        fileMonitorSleepTime, err := time.ParseDuration(*cacheCheckFreq)
+        if err != nil {
+            Config.LogSystemFatal("Error parsing supplied cache check frequency %s: %s\n", *cacheCheckFreq, err)
+        }
+
+        /* Init file cache */
+        Config.FileSystem.Init(*cacheSize, *cacheFileSizeMax)
+        Config.LogSystem("File caching enabled with: maxcount=%d maxsize=%.3fMB\n", *cacheSize, *cacheFileSizeMax)
+
+        /* Before file monitor or any kind of new goroutines started,
+         * check if we need to cache generated policy files
+         */
+        cachePolicyFiles(*serverDescription, *serverAdmin, *serverGeoloc)
+
+        /* Start file cache freshness checker */
+        go startFileMonitor(fileMonitorSleepTime)
+        Config.LogSystem("File cache freshness monitor started with frequency: %s\n", fileMonitorSleepTime)
+    } else {
+        /* File caching disabled, init with zero max size so nothing gets cached */
+        Config.FileSystem.Init(2, 0)
+        Config.LogSystem("File caching disabled\n")
+
+        /* Safe to cache policy files now */
+        cachePolicyFiles(*serverDescription, *serverAdmin, *serverGeoloc)
+    }
 
     /* Return the created listeners slice :) */
     return listeners

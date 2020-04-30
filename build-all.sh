@@ -3,13 +3,40 @@
 set -e
 
 PROJECT='gophor'
-OUTDIR='build'
 VERSION="$(cat 'constants.go' | grep -E '^\s*GophorVersion' | sed -e 's|\s*GophorVersion = \"||' -e 's|\"\s*$||')"
-echo "VERSION: $VERSION"
 GOVERSION="$(go version | sed -e 's|^go version go||' -e 's|\s.*$||')"
+LOGFILE='build.log'
+OUTDIR="build-${VERSION}"
 
-echo "PLEASE BE WARNED THIS SCRIPT IS WRITTEN FOR MY VOID LINUX BUILD ENVIRONMENT"
-echo "YOUR CC CROSS-COMPILER LOCATIONS MAY DIFFER ON YOUR BUILD SYSTEM"
+silent() {
+    "$@" > "$LOGFILE" 2>&1
+}
+
+build_for() {
+    local archname="$1" toolchain="$2" os="$3" arch="$4"
+    shift 4
+    if [ "$arch" = 'arm' ]; then
+        local armversion="$1"
+        shift 1
+    fi
+
+    echo "Building for ${os} ${archname}..."
+    local filename="${OUTDIR}/${PROJECT}_${os}_${archname}"
+    CGO_ENABLED=1 CC="$toolchain" GOOS="$os" GOARCH="$arch" GOARM="$armversion" silent go build -trimpath -o "$filename" "$@"
+    if [ "$?" -ne 0 ]; then
+        echo "Failed!"
+        return 1
+    fi
+
+    echo "Compressing ${filename}..."
+    silent upx --best "$filename"
+    silent upx -t "$filename"
+    echo ""
+}
+
+echo "PLEASE BE WARNED THIS SCRIPT IS WRITTEN FOR A VOID LINUX (MUSL) BUILD ENVIRONMENT"
+echo "YOUR CC TOOLCHAIN LOCATIONS MAY DIFFER"
+echo "IF THE SCRIPT FAILS, CHECK THE OUTPUT OF: ${LOGFILE}"
 echo ""
 
 # Clean and recreate directory
@@ -17,95 +44,28 @@ rm -rf "$OUTDIR"
 mkdir -p "$OUTDIR"
 
 # Build time :)
-echo "Building for linux 386..."
-filename="${OUTDIR}/${PROJECT}.${VERSION}_linux.386_${GOVERSION}"
-CGO_ENABLED=1 CC='i686-linux-musl-gcc'         GOOS='linux' GOARCH='386'          go build -trimpath -o "$filename"      -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
-upx --best "$filename"
-upx -t "$filename"
-echo ""
+build_for '386'      'i686-linux-musl-gcc'         'linux' '386'     -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
 
-echo "Building for linux amd64..."
-filename="${OUTDIR}/${PROJECT}.${VERSION}_linux.amd64_${GOVERSION}"
-CGO_ENABLED=1 CC='x86_64-linux-musl-gcc'       GOOS='linux' GOARCH='amd64'        go build -trimpath -o "$filename"    -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
-upx --best "$filename"
-upx -t "$filename"
-echo ""
+build_for 'amd64'    'x86_64-linux-musl-gcc'       'linux' 'amd64'   -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
 
-echo "Building for linux armv5..."
-filename="${OUTDIR}/${PROJECT}.${VERSION}_linux.armv5_${GOVERSION}"
-CGO_ENABLED=1 CC='arm-linux-musleabi-gcc'      GOOS='linux' GOARCH='arm'  GOARM=5 go build -trimpath -o "$filename"    -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
-upx --best "$filename"
-upx -t "$filename"
-echo ""
+build_for 'armv5'    'arm-linux-musleabi-gcc'      'linux' 'arm' '5' -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
 
-echo "Building for linux armv5hf..."
-filename="${OUTDIR}/${PROJECT}.${VERSION}_linux.armv5hf_${GOVERSION}"
-CGO_ENABLED=1 CC='arm-linux-musleabihf-gcc'    GOOS='linux' GOARCH='arm'  GOARM=5 go build -trimpath -o "$filename"  -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
-upx --best "$filename"
-upx -t "$filename"
-echo ""
+build_for 'armv5hf'  'arm-linux-musleabihf-gcc'    'linux' 'arm' '5' -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
 
-echo "Building for linux armv6..."
-filename="${OUTDIR}/${PROJECT}.${VERSION}_linux.armv6_${GOVERSION}"
-CGO_ENABLED=1 CC='arm-linux-musleabi-gcc'      GOOS='linux' GOARCH='arm'  GOARM=6 go build -trimpath -o "$filename"    -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
-upx --best "$filename"
-upx -t "$filename"
-echo ""
+build_for 'armv6'    'arm-linux-musleabi-gcc'      'linux' 'arm' '6' -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
 
-echo "Building for linux armv6hf..."
-filename="${OUTDIR}/${PROJECT}.${VERSION}_linux.armv6hf_${GOVERSION}"
-CGO_ENABLED=1 CC='arm-linux-musleabihf-gcc'    GOOS='linux' GOARCH='arm'  GOARM=6 go build -trimpath -o "$filename"  -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
-upx --best "$filename"
-upx -t "$filename"
-echo ""
+build_for 'armv6hf'  'arm-linux-musleabihf-gcc'    'linux' 'arm' '6' -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
 
-echo "Building for linux armv7hf..."
-filename="${OUTDIR}/${PROJECT}.${VERSION}_linux.armv7hf_${GOVERSION}"
-CGO_ENABLED=1 CC='armv7l-linux-musleabihf-gcc' GOOS='linux' GOARCH='arm'  GOARM=7 go build -trimpath -o "$filename"  -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
-upx --best "$filename"
-upx -t "$filename"
-echo ""
+build_for 'armv7lhf' 'armv7l-linux-musleabihf-gcc' 'linux' 'arm' '7' -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
 
-echo "Building for linux arm64..."
-filename="${OUTDIR}/${PROJECT}.${VERSION}_linux.arm64_${GOVERSION}"
-CGO_ENABLED=1 CC='aarch64-linux-musl-gcc'      GOOS='linux' GOARCH='arm64'        go build -trimpath -o "$filename"    -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
-upx --best "$filename"
-upx -t "$filename"
-echo ""
+build_for 'arm64'    'aarch64-linux-musl-gcc'      'linux' 'arm64'   -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
 
-echo "Building for linux mips..."
-filename="${OUTDIR}/${PROJECT}.${VERSION}_linux.mips_${GOVERSION}"
-CGO_ENABLED=1 CC='mips-linux-musl-gcc'         GOOS='linux' GOARCH='mips'         go build -trimpath -o "$filename"     -buildmode 'default' -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
-upx --best "$filename"
-upx -t "$filename"
-echo ""
+build_for 'mips'     'mips-linux-musl-gcc'         'linux' 'mips'    -buildmode 'default' -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
 
-echo "Building for linux mipshf..."
-filename="${OUTDIR}/${PROJECT}.${VERSION}_linux.mipshf_${GOVERSION}"
-CGO_ENABLED=1 CC='mips-linux-muslhf-gcc'       GOOS='linux' GOARCH='mips'         go build -trimpath -o "$filename"   -buildmode 'default' -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
-upx --best "$filename"
-upx -t "$filename"
-echo ""
+build_for 'mipshf'   'mips-linux-muslhf-gcc'       'linux' 'mips'    -buildmode 'default' -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
 
-echo "Building for linux mipsle..."
-filename="${OUTDIR}/${PROJECT}.${VERSION}_linux.mipsle_${GOVERSION}"
-CGO_ENABLED=1 CC='mipsel-linux-musl-gcc'       GOOS='linux' GOARCH='mipsle'       go build -trimpath -o "$filename"   -buildmode 'default' -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
-upx --best "$filename"
-upx -t "$filename"
-echo ""
+build_for 'mipsle'   'mipsel-linux-musl-gcc'       'linux' 'mipsle'  -buildmode 'default' -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
 
-echo "Building for linux mipslehf..."
-filename="${OUTDIR}/${PROJECT}.${VERSION}_linux.mipslehf_${GOVERSION}"
-CGO_ENABLED=1 CC='mipsel-linux-muslhf-gcc'     GOOS='linux' GOARCH='mipsle'       go build -trimpath -o "$filename" -buildmode 'default' -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
-upx --best "$filename"
-upx -t "$filename"
-echo ""
+build_for 'mipslehf' 'mipsel-linux-muslhf-gcc'     'linux' 'mipsle'  -buildmode 'default' -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
 
-echo "Building for linux ppc64le..."
-filename="${OUTDIR}/${PROJECT}.${VERSION}_linux.ppc64le_${GOVERSION}"
-CGO_ENABLED=1 CC='powerpc64le-linux-musl-gcc'  GOOS='linux' GOARCH='ppc64le'      go build -trimpath -o "$filename"  -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'
-upx --best "$filename"
-upx -t "$filename
-echo ""
-
-echo "PLEASE DON'T JUDGE THIS SCRIPT, IT IS TRULY SO AWFUL. TO BE IMPROVED..."
+build_for 'ppc64le'  'powerpc64le-linux-musl-gcc'  'linux' 'ppc64le' -buildmode 'pie'     -a -tags 'netgo' -ldflags '-s -w -extldflags "-static"'

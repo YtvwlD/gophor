@@ -6,6 +6,27 @@ import (
     "strings"
 )
 
+/* GeneratedFileContents:
+ * The simplest implementation of FileContents that
+ * stores some bytes and does nothing else.
+ */
+type GeneratedFileContents struct {
+    contents []byte
+}
+
+func (fc *GeneratedFileContents) Render(request *FileSystemRequest) []byte {
+    return fc.contents
+}
+
+func (fc *GeneratedFileContents) Load() *GophorError {
+    /* do nothing */
+    return nil
+}
+
+func (fc *GeneratedFileContents) Clear() {
+    /* do nothing */
+}
+
 /* RegularFileContents:
  * Very simple implementation of FileContents that just
  * buffered reads from the stored file path, stores the
@@ -46,12 +67,13 @@ type GophermapContents struct {
 }
 
 func (gc *GophermapContents) Render(request *FileSystemRequest) []byte {
+    returnContents := make([]byte, 0)
+
     /* We don't just want to read the contents, each section
      * in the sections slice needs a call to render() to
      * perform their own required actions in producing a
      * sendable byte slice.
      */
-    returnContents := make([]byte, 0)
     for _, line := range gc.sections {
         content, gophorErr := line.Render(request)
         if gophorErr != nil {
@@ -60,8 +82,7 @@ func (gc *GophermapContents) Render(request *FileSystemRequest) []byte {
         returnContents = append(returnContents, content...)
     }
 
-    /* Finally we end render with last line */
-    returnContents = append(returnContents, []byte(LastLine)...)
+    /* The footer added later contains last line, don't need to worry */
 
     return returnContents
 }
@@ -93,17 +114,15 @@ type GophermapSection interface {
  * onto a static section of text as a slice of bytes.
  */
 type GophermapText struct {
-    contents []byte
+    Contents []byte
 }
 
 func NewGophermapText(contents []byte) *GophermapText {
-    s := new(GophermapText)
-    s.contents = contents
-    return s
+    return &GophermapText{ contents }
 }
 
 func (s *GophermapText) Render(request *FileSystemRequest) ([]byte, *GophorError) {
-    return replaceStrings(string(s.contents), request.Host), nil
+    return replaceStrings(string(s.Contents), request.Host), nil
 }
 
 /* GophermapDirListing:
@@ -113,21 +132,19 @@ func (s *GophermapText) Render(request *FileSystemRequest) ([]byte, *GophorError
  * Render() call is received.
  */
 type GophermapDirListing struct {
-    path   string
+    Path   string
     Hidden map[string]bool
 }
 
 func NewGophermapDirListing(path string) *GophermapDirListing {
-    s := new(GophermapDirListing)
-    s.path = path
-    return s
+    return &GophermapDirListing{ path, nil }
 }
 
 func (s *GophermapDirListing) Render(request *FileSystemRequest) ([]byte, *GophorError) {
     /* We could just pass the request directly, but in case the request
      * path happens to differ for whatever reason we create a new one
      */
-    return listDir(&FileSystemRequest{ s.path, request.Host }, s.Hidden)
+    return listDir(&FileSystemRequest{ s.Path, request.Host }, s.Hidden)
 }
 
 func readGophermap(path string) ([]GophermapSection, *GophorError) {

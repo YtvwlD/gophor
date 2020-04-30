@@ -27,11 +27,11 @@ type MapElement struct {
 }
 
 func NewFixedMap(size int) *FixedMap {
-    fm := new(FixedMap)
-    fm.Map = make(map[string]*MapElement)
-    fm.List = list.New()
-    fm.Size = size
-    return fm
+    return &FixedMap{
+        make(map[string]*MapElement),
+        list.New(),
+        size,
+    }
 }
 
 /* Get file in map for key, or nil */

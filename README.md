@@ -1,17 +1,16 @@
 # Gophor
 
-Holy shit we made it to our first alpha release!
-
 A Gopher server written in GoLang as a means of learning about the Gopher
 protocol, and more GoLang.
 
-Linux only _for now_. Cross-compiled to way too many architectures. Don't
-judge my build script, it's not easy on the eyes, I'll fix it when I can be
-bothered...
+Linux only _for now_. Cross-compiled to way too many architectures.
+Build-script now much improved, but still not pretty...
 
 I'm unemployed and work on open-source projects like this and many others for
 free. If you would like to help support my work that would be hugely
 appreciated 💕 https://liberapay.com/grufwub/
+
+`gophor-run` is an example script to help with automation of gophor.
 
 WARNING: the development branch is filled with lava, fear and capitalism.
 
@@ -19,22 +18,46 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 ```
 gophor [args]
-       -root           Change server root directory.
-       -port           Change server NON-TLS listening port.
-       -hostname       Change server hostname (FQDN, used to craft dir lists).
-       -bind-addr      Change server bind-address (used in creating socket).
-       -user           Drop to supplied user's UID and GID permissions before execution.
-       -system-log     Path to gophor system log file, else use stderr.
-       -access-log     Path to gophor access log file, else use stderr.
-       -cache-check    Change file-cache freshness check frequency.
-       -cache-size     Change max no. files in file-cache.
-       -cache-file-max Change maximum allowed size of a cached file.
-       -page-width     Change page width used when formatting output.
-       -restrict-files New-line separated list of regex statements restricting
-                       files from showing in directory listing.
-       -description    Change server description in auto generated caps.txt.
-       -admin-email    Change admin email in auto generated caps.txt.
-       -geoloc         Change geolocation in auto generated caps.txt.
+       -root                Change server root directory.
+
+       -port                Change server NON-TLS listening port.
+
+       -hostname            Change server hostname (FQDN, used to craft dir
+                            lists).
+
+       -bind-addr           Change server bind-address (used in creating
+                            socket).
+
+       -user                Drop to supplied user's UID and GID permissions
+                            before execution.
+
+       -system-log          Path to gophor system log file, else use stderr.
+
+       -access-log          Path to gophor access log file, else use stderr.
+
+       -cache-check         Change file-cache freshness check frequency.
+
+       -cache-size          Change max no. files in file-cache.
+
+       -cache-file-max      Change maximum allowed size of a cached file.
+
+       -page-width          Change page width used when formatting output.
+
+       -footer              Change gophermap footer text (Unix new-line
+                            separated lines).
+
+       -no-footer-separator Disable footer text line separator.
+
+       -restrict-files      New-line separated list of regex statements
+                            restricting files from showing in directory listing.
+
+       -description         Change server description in generated caps.txt.
+
+       -admin-email         Change admin email in generated caps.txt.
+
+       -geoloc              Change geolocation in generated caps.txt.
+
+       -version             Print version string.
 ```
 
 # Features
@@ -176,38 +199,37 @@ files.
 
 ## Placeholder text
 
-Selector: `-`
+All of the following are used as placeholder text in responses...
 
-Host: `null.host`
+Null selector: `-`
 
-Port: `0`
+Null host: `null.host`
+
+Null port: `0`
 
 # Todos
 
 Shortterm:
 
-- Add last-mod-time to directory listings -- have global time parser object
-
-- Rotating logs -- have a check on start for a file-size, rotate out if the
-  file is too large. Possibly checks during run-time too?
-
 - Set default charset -- need to think about implementation here...
+
+- Fix file cache only updating if main gophermap changes (but not sub files)
+  -- need to either rethink how we keep track of files, or rethink how
+  gophermaps are stored in memory.
+
+Longterm:
 
 - Finish inline shell scripting support -- current thinking is to either
   perform a C fork very early on, or create a separate modules binary, and
   either way the 2 processes interact via some IPC method. Could allow for
   other modules too.
 
-- Fix file cache only updating if main gophermap changes (but not sub files)
-  -- need to either rethink how we keep track of files, or rethink how
-  gophermaps are stored in memory.
+- Rotating logs -- have a check on start for a file-size, rotate out if the
+  file is too large. Possibly checks during run-time too?
 
-- Improve responding to policy files + URL redirects -- need to rethink the
-  worker + response logic.
-
-- Add more files to file extension map
-
-Longterm:
+- Add last-mod-time to directory listings -- have global time parser
+  object, maybe separate out separate global instances of objects (e.g.
+  worker related, cache related, config related?)
 
 - TLS support -- ~~requires a rethink of how we're passing port functions
   generating gopher directory entries, also there is no definitive standard
@@ -217,9 +239,6 @@ Longterm:
 - Connection throttling + timeouts -- thread to keep track of list of
   recently connected IPs. Keep incremementing connection count and only
   remove from list when `lastIncremented` time is greater than timeout
-
-- Header + footer text -- read in file / input string and format, hold in
-  memory than append to end of gophermaps / dir listings
 
 - More closely follow GoLang built-in net/http code style for worker -- just
   a neatness thing, maybe bring some performance improvements too and a

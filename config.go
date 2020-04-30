@@ -15,12 +15,8 @@ type ServerConfig struct {
     /* Base settings */
     RootDir         string
 
-    /* Caps.txt information */
-    Description     string
-    AdminEmail      string
-    Geolocation     string
-
     /* Content settings */
+    FooterText      []byte
     PageWidth       int
     RestrictedFiles []*regexp.Regexp
 
@@ -28,8 +24,8 @@ type ServerConfig struct {
     SystemLogger    *log.Logger
     AccessLogger    *log.Logger
 
-    /* Cache */
-    FileCache       *FileCache
+    /* Filesystem access */
+    FileSystem      *FileSystem
 }
 
 func (config *ServerConfig) LogSystem(fmt string, args ...interface{}) {
@@ -45,9 +41,9 @@ func (config *ServerConfig) LogSystemFatal(fmt string, args ...interface{}) {
 }
 
 func (config *ServerConfig) LogAccess(sourceAddr, fmt string, args ...interface{}) {
-    config.AccessLogger.Printf(":: I :: ("+sourceAddr+") "+fmt, args...)
+    config.AccessLogger.Printf(":: I :: ["+sourceAddr+"] "+fmt, args...)
 }
 
 func (config *ServerConfig) LogAccessError(sourceAddr, fmt string, args ...interface{}) {
-    config.AccessLogger.Printf(":: E :: ("+sourceAddr+") "+fmt, args...)
+    config.AccessLogger.Printf(":: E :: ["+sourceAddr+"] "+fmt, args...)
 }
