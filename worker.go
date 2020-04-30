@@ -100,7 +100,7 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     switch len(dataStr) {
         case lenBefore-4:
             /* Send an HTML redirect to supplied URL */
-            worker.Log("Redirecting to: %s\n", data)
+            worker.Log("Redirecting to %s\n", data)
             return worker.SendRaw(generateHtmlRedirect(dataStr))
         default:
             /* Do nothing */
@@ -125,16 +125,18 @@ func readUpToFirstTabOrCrlf(data []byte) string {
     dataStr := ""
     dataLen := len(data)
     for i := 0; i < dataLen; i += 1 {
-        if data[i] == '\t' {
-            break
-        } else if data[i] == DOSLineEnd[0] {
-            if i == dataLen-1 || data[i+1] == DOSLineEnd[1] {
-                /* Finished on Unix line end, NOT DOS */
-                break
-            }
+        switch data[i] {
+            case '\t':
+                return dataStr
+            case DOSLineEnd[0]:
+                if i == dataLen-1 || data[i+1] == DOSLineEnd[1] {
+                    return dataStr
+                }
+            case UnixLineEnd[0]:
+                return dataStr
+            default:
+                dataStr += string(data[i])
         }
-
-        dataStr += string(data[i])
     }
 
     return dataStr
