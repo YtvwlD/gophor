@@ -74,15 +74,28 @@ func (fs *FileSystem) HandleRequest(requestPath string, host *ConnHost) ([]byte,
     switch fileType {
         /* Directory */
         case FileTypeDir:
+            /* Check Gophermap exists */
             gophermapPath := path.Join(requestPath, GophermapFileStr)
             _, err := os.Stat(gophermapPath)
+
+            var output []byte
+            var gophorErr *GophorError
             if err == nil {
                 /* Gophermap exists, serve this! */
-                return fs.FetchFile(&FileSystemRequest{ gophermapPath, host })
+                output, gophorErr = fs.FetchFile(&FileSystemRequest{ gophermapPath, host })
             } else {
                 /* No gophermap, serve directory listing */
-                return listDir(&FileSystemRequest{ requestPath, host }, map[string]bool{})
+                output, gophorErr = listDir(&FileSystemRequest{ requestPath, host }, map[string]bool{})
             }
+
+            if gophorErr != nil {
+                /* Fail out! */
+                return nil, gophorErr
+            }
+
+            /* Append footer text (contains last line) and return */
+            output = append(output, Config.FooterText...)
+            return output, nil
 
         /* Regular file */
         case FileTypeRegular:

@@ -67,12 +67,13 @@ type GophermapContents struct {
 }
 
 func (gc *GophermapContents) Render(request *FileSystemRequest) []byte {
+    returnContents := make([]byte, 0)
+
     /* We don't just want to read the contents, each section
      * in the sections slice needs a call to render() to
      * perform their own required actions in producing a
      * sendable byte slice.
      */
-    returnContents := make([]byte, 0)
     for _, line := range gc.sections {
         content, gophorErr := line.Render(request)
         if gophorErr != nil {
@@ -81,8 +82,7 @@ func (gc *GophermapContents) Render(request *FileSystemRequest) []byte {
         returnContents = append(returnContents, content...)
     }
 
-    /* Finally we end render with last line */
-    returnContents = append(returnContents, []byte(LastLine)...)
+    /* The footer added later contains last line, don't need to worry */
 
     return returnContents
 }

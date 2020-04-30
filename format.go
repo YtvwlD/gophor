@@ -141,6 +141,31 @@ func getItemType(name string) ItemType {
     }
 }
 
+/* Build a line separator of supplied width */
+func buildLineSeparator(count int) string {
+    ret := ""
+    for i := 0; i < count; i += 1 {
+        ret += "_"
+    }
+    return ret
+}
+
+/* Formats an info-text footer from string. Add last line as we use the footer to contain last line (regardless if empty) */
+func formatGophermapFooter(text string, useSeparator bool) []byte {
+    ret := make([]byte, 0)
+    if text != "" {
+        ret = append(ret, buildInfoLine("")...)
+        if useSeparator {
+            ret = append(ret, buildInfoLine(buildLineSeparator(Config.PageWidth))...)
+        }
+        for _, line := range strings.Split(text, "\n") {
+            ret = append(ret, buildInfoLine(line)...)
+        }
+    }
+    ret = append(ret, []byte(LastLine)...)
+    return ret
+}
+
 /* Parse line type from contents */
 func parseLineType(line string) ItemType {
     lineLen := len(line)

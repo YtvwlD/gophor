@@ -82,6 +82,9 @@ func setupServer() []*GophorListener {
     serverGeoloc      := flag.String("geoloc", "", "Change server gelocation string in auto-generated caps.txt.")
 
     /* Content settings */
+    footerText        := flag.String("footer", "Running Gophor, a Gopher server in Go.", "Change gophermap footer text (Unix new-line separated lines).")
+    footerSeparator   := flag.Bool("no-footer-separator", false, "Disable footer text line separator.")
+
     pageWidth         := flag.Int("page-width", 80, "Change page width used when formatting output.")
     restrictedFiles   := flag.String("restrict-files", "", "New-line separated list of regex statements restricting files from showing in directory listings.")
 
@@ -109,6 +112,9 @@ func setupServer() []*GophorListener {
     Config = new(ServerConfig)
     Config.RootDir     = *serverRoot
     Config.PageWidth   = *pageWidth
+
+    /* Have to be set AFTER page width variable set */
+    Config.FooterText  = formatGophermapFooter(*footerText, !*footerSeparator)
 
     /* Setup Gophor logging system */
     Config.SystemLogger, Config.AccessLogger = setupLogging(*logType, *systemLogPath, *accessLogPath)

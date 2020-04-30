@@ -16,6 +16,7 @@ type ServerConfig struct {
     RootDir         string
 
     /* Content settings */
+    FooterText      []byte
     PageWidth       int
     RestrictedFiles []*regexp.Regexp
 
