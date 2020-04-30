@@ -4,6 +4,11 @@ const (
     /* Gophor */
     GophorVersion = "0.5-alpha-PR3"
 
+    /* Socket settings */
+    SocketReadBufSize   = 256 /* Supplied selector shouldn't be longer than this anyways */
+    MaxSocketReadChunks = 1
+    FileReadBufSize     = 1024
+
     /* Parsing */
     DOSLineEnd = "\r\n"
     UnixLineEnd = "\n"
@@ -12,6 +17,7 @@ const (
     Tab = "\t"
     LastLine = End+DOSLineEnd
 
+    /* Line creation */
     MaxUserNameLen = 70  /* RFC 1436 standard */
     MaxSelectorLen = 255 /* RFC 1436 standard */
 
@@ -22,6 +28,7 @@ const (
     SelectorErrorStr = "selector_length_error"
     GophermapRenderErrorStr = ""
 
+    /* Replacement strings */
     ReplaceStrHostname = "$hostname"
     ReplaceStrPort = "$port"
 

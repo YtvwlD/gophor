@@ -4,12 +4,16 @@ import (
     "os"
     "sync"
     "path"
-    "bytes"
     "time"
-    "io"
-    "sort"
-    "bufio"
     "strings"
+)
+
+type FileType int
+const (
+    /* Leads to some more concise code below */
+    FileTypeRegular FileType = iota
+    FileTypeDir     FileType = iota
+    FileTypeBad     FileType = iota
 )
 
 /* FileSystem:

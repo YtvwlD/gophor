@@ -5,18 +5,6 @@ import (
     "strings"
 )
 
-type FileType int
-const (
-    SocketReadBufSize   = 256 /* Supplied selector shouldn't be longer than this anyways */
-    MaxSocketReadChunks = 4
-    FileReadBufSize     = 1024
-
-    /* Leads to some more concise code below */
-    FileTypeRegular FileType = iota
-    FileTypeDir     FileType = iota
-    FileTypeBad     FileType = iota
-)
-
 type Worker struct {
     Conn *GophorConn
 }

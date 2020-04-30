@@ -2,14 +2,11 @@ package main
 
 import (
     "os"
-    "sync"
     "path"
     "bytes"
-    "time"
     "io"
     "sort"
     "bufio"
-    "strings"
 )
 
 /* Perform simple buffered read on a file at path */
