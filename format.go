@@ -46,6 +46,7 @@ var FileExtMap = map[string]ItemType{
     ".bash_profile": TypeFile,
     ".bash_logout":  TypeFile,
     ".log":          TypeFile,
+    ".ovpn":         TypeFile,
 
     ".md":           TypeMarkup,
 
