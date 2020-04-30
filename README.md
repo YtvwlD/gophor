@@ -12,6 +12,32 @@ appreciated 💕 https://liberapay.com/grufwub/
 
 WARNING: the development branch is filled with lava, fear and capitalism.
 
+# Features
+
+- Built with concurrency and efficiency in mind.
+
+- ZERO external dependencies.
+
+- Security focused -- chroots into server direrctory and drops
+  privileges. `maybe wait until stable release before use outside of hobby
+  setups.`
+
+- LRU file caching -- with user-controlled cache size, max cached file size
+  and cache refresh frequency.
+
+- Insert files within gophermaps, including automating reflowing of lines
+  longer than (user definable) page width.
+
+- Automatic replacement of `$hostname` or `$port` with the information of
+  the host the client is connecting to.
+
+- User supplied footer text appended to gophermaps and directory listings.
+
+- Item type characters beyond RFC 1436 standard (see below).
+
+- Separate system and access logging with output to file if requested (or to
+  disable both).
+
 # Usage
 
 ```
@@ -57,30 +83,6 @@ gophor [args]
 
        -version             Print version string.
 ```
-
-# Features
-
-- Built with concurrency and efficiency in mind.
-
-- ZERO external dependencies.
-
-- Security focused -- chroots into server direrctory and drops
-  privileges. `maybe wait until stable release before use outside of hobby
-  setups.`
-
-- LRU file caching -- with user-controlled cache size, max cached file size
-  and cache refresh frequency.
-
-- Insert files within gophermaps, including automating reflowing of lines
-  longer than (user definable) page width.
-
-- Automatic replacement of `$hostname` or `$port` with the information of
-  the host the client is connecting to.
-
-- Item type characters beyond RFC 1436 standard (see below).
-
-- Separate system and access logging with output to file if requested (or to
-  disable both).
 
 # Supported gophermap item types
 
