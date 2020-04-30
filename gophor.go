@@ -82,7 +82,7 @@ func setupServer() []*GophorListener {
     serverGeoloc      := flag.String("geoloc", "", "Change server gelocation string in generated caps.txt.")
 
     /* Content settings */
-    footerText        := flag.String("footer", "Running Gophor, a Gopher server in Go.", "Change gophermap footer text (Unix new-line separated lines).")
+    footerText        := flag.String("footer", "", "Change gophermap footer text (Unix new-line separated lines).")
     footerSeparator   := flag.Bool("no-footer-separator", false, "Disable footer line separator.")
 
     pageWidth         := flag.Int("page-width", 80, "Change page width used when formatting output.")

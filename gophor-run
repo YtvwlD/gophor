@@ -17,7 +17,7 @@ CACHEFILEMAXMB='1'
 CACHECHECKFREQ='1s'
 
 PAGEWIDTH=80
-FOOTERTEXT='Gophor, a Gopher server in Go.'
+FOOTERTEXT='Running Gophor, a Gopher server in Go.'
 
 usage() {
     echo 'Usage: gophor-run start|stop|status'
