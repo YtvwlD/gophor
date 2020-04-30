@@ -23,7 +23,7 @@ type ServerConfig struct {
     SystemLogger    *log.Logger
     AccessLogger    *log.Logger
 
-    /* Cache */
+    /* Filesystem access */
     FileSystem      *FileSystem
 }
 
