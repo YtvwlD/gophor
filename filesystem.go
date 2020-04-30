@@ -3,69 +3,16 @@ package main
 import (
     "os"
     "sync"
-    "time"
     "path"
+    "bytes"
+    "time"
+    "io"
+    "sort"
+    "bufio"
     "strings"
 )
 
-func startFileMonitor(sleepTime time.Duration) {
-    go func() {
-        for {
-            /* Sleep so we don't take up all the precious CPU time :) */
-            time.Sleep(sleepTime)
-
-            /* Check global file cache freshness */
-            checkCacheFreshness()
-        }
-
-        /* We shouldn't have reached here */
-        Config.LogSystemFatal("FileCache monitor escaped run loop!\n")
-    }()
-}
-
-func checkCacheFreshness() {
-    /* Before anything, get cache write lock (in case we have to delete) */
-    Config.FileSystem.CacheMutex.Lock()
-
-    /* Iterate through paths in cache map to query file last modified times */
-    for path := range Config.FileSystem.CacheMap.Map {
-        /* Get file pointer, no need for lock as we have write lock */
-        file := Config.FileSystem.CacheMap.Get(path)
-
-        /* If this is a generated file, we skip */
-        if isGeneratedType(file) {
-            continue
-        }
-
-        stat, err := os.Stat(path)
-        if err != nil {
-            /* Log file as not in cache, then delete */
-            Config.LogSystemError("Failed to stat file in cache: %s\n", path)
-            Config.FileSystem.CacheMap.Remove(path)
-            continue
-        }
-        timeModified := stat.ModTime().UnixNano()
-
-        /* If the file is marked as fresh, but file on disk newer, mark as unfresh */
-        if file.Fresh && file.LastRefresh < timeModified {
-            file.Fresh = false
-        }
-    }
-
-    /* Done! We can release cache read lock */
-    Config.FileSystem.CacheMutex.Unlock()
-}
-
-func isGeneratedType(file *File) bool {
-    switch file.contents.(type) {
-       case *GeneratedFileContents:
-           return true
-       default:
-           return false 
-    }
-}
-
-/* FileCache:
+/* FileSystem:
  * Object to hold and help manage our file cache. Uses a fixed map
  * as a means of easily collecting files by path, but also being able
  * to remove cached files in a LRU style. Uses a RW mutex to lock the
@@ -84,7 +31,7 @@ func (fs *FileSystem) Init(size int, fileSizeMax float64) {
 }
 
 func (fs *FileSystem) HandleRequest(requestPath string, host *ConnHost) ([]byte, *GophorError) {
-    /* Stat filesystem for request file type */
+    /* Stat filesystem for request's file type */
     fileType := FileTypeDir;
     if requestPath != "/" {
         stat, err := os.Stat(requestPath)
@@ -233,4 +180,130 @@ func (fs *FileSystem) FetchFile(request *FileSystemRequest) ([]byte, *GophorErro
     fs.CacheMutex.RUnlock()
 
     return b, nil
+}
+
+/* FileSystemRequest:
+ * Makes a request to the filesystem either through
+ * the FileCache or directly to a function like listDir().
+ * It carries the requested filesystem path and any extra
+ * needed information, for the moment just a set of details
+ * about the virtual host.. Opens things up a lot more for
+ * the future :)
+ */
+type FileSystemRequest struct {
+    Path string
+    Host *ConnHost
+}
+
+/* File:
+ * Wraps around the cached contents of a file and
+ * helps with management of this content by the
+ * global FileCache objects.
+ */
+type File struct {
+    contents    FileContents
+    Mutex       sync.RWMutex
+    Fresh       bool
+    LastRefresh int64
+}
+
+func NewFile(contents FileContents) *File {
+    return &File{ 
+        contents,
+        sync.RWMutex{},
+        true,
+        0,
+    }
+}
+
+func (f *File) Contents(request *FileSystemRequest) []byte {
+    return f.contents.Render(request)
+}
+
+func (f *File) LoadContents() *GophorError {
+    /* Clear current file contents */
+    f.contents.Clear()
+
+    /* Reload the file */
+    gophorErr := f.contents.Load()
+    if gophorErr != nil {
+        return gophorErr
+    }
+
+    /* Update lastRefresh, set fresh, unset deletion (not likely set) */
+    f.LastRefresh = time.Now().UnixNano()
+    f.Fresh       = true
+
+    return nil
+}
+
+/* FileContents:
+ * Interface that provides an adaptable implementation
+ * for holding onto some level of information about
+ * the contents of a file, also methods for processing
+ * and returning the results when the file contents
+ * are requested.
+ */
+type FileContents interface {
+    Render(*FileSystemRequest) []byte
+    Load()                     *GophorError
+    Clear()
+}
+
+func startFileMonitor(sleepTime time.Duration) {
+    go func() {
+        for {
+            /* Sleep so we don't take up all the precious CPU time :) */
+            time.Sleep(sleepTime)
+
+            /* Check global file cache freshness */
+            checkCacheFreshness()
+        }
+
+        /* We shouldn't have reached here */
+        Config.LogSystemFatal("FileCache monitor escaped run loop!\n")
+    }()
+}
+
+func checkCacheFreshness() {
+    /* Before anything, get cache write lock (in case we have to delete) */
+    Config.FileSystem.CacheMutex.Lock()
+
+    /* Iterate through paths in cache map to query file last modified times */
+    for path := range Config.FileSystem.CacheMap.Map {
+        /* Get file pointer, no need for lock as we have write lock */
+        file := Config.FileSystem.CacheMap.Get(path)
+
+        /* If this is a generated file, we skip */
+        if isGeneratedType(file) {
+            continue
+        }
+
+        stat, err := os.Stat(path)
+        if err != nil {
+            /* Log file as not in cache, then delete */
+            Config.LogSystemError("Failed to stat file in cache: %s\n", path)
+            Config.FileSystem.CacheMap.Remove(path)
+            continue
+        }
+        timeModified := stat.ModTime().UnixNano()
+
+        /* If the file is marked as fresh, but file on disk newer, mark as unfresh */
+        if file.Fresh && file.LastRefresh < timeModified {
+            file.Fresh = false
+        }
+    }
+
+    /* Done! We can release cache read lock */
+    Config.FileSystem.CacheMutex.Unlock()
+}
+
+func isGeneratedType(file *File) bool {
+    /* Just a helper function to neaten-up checking if file contents is of generated type */
+    switch file.contents.(type) {
+       case *GeneratedFileContents:
+           return true
+       default:
+           return false 
+    }
 }

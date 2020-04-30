@@ -9,75 +9,8 @@ import (
     "io"
     "sort"
     "bufio"
+    "strings"
 )
-
-/* FileSystemRequest:
- * Makes a request to the filesystem either through
- * the FileCache or directly to a function like listDir().
- * It carries the requested filesystem path and any extra
- * needed information, for the moment just a set of details
- * about the virtual host.. Opens things up a lot more for
- * the future :)
- */
-type FileSystemRequest struct {
-    Path string
-    Host *ConnHost
-}
-
-/* File:
- * Wraps around the cached contents of a file and
- * helps with management of this content by the
- * global FileCache objects.
- */
-type File struct {
-    contents    FileContents
-    Mutex       sync.RWMutex
-    Fresh       bool
-    LastRefresh int64
-}
-
-func NewFile(contents FileContents) *File {
-    return &File{ 
-        contents,
-        sync.RWMutex{},
-        true,
-        0,
-    }
-}
-
-func (f *File) Contents(request *FileSystemRequest) []byte {
-    return f.contents.Render(request)
-}
-
-func (f *File) LoadContents() *GophorError {
-    /* Clear current file contents */
-    f.contents.Clear()
-
-    /* Reload the file */
-    gophorErr := f.contents.Load()
-    if gophorErr != nil {
-        return gophorErr
-    }
-
-    /* Update lastRefresh, set fresh, unset deletion (not likely set) */
-    f.LastRefresh = time.Now().UnixNano()
-    f.Fresh       = true
-
-    return nil
-}
-
-/* FileContents:
- * Interface that provides an adaptable implementation
- * for holding onto some level of information about
- * the contents of a file, also methods for processing
- * and returning the results when the file contents
- * are requested.
- */
-type FileContents interface {
-    Render(*FileSystemRequest) []byte
-    Load()                     *GophorError
-    Clear()
-}
 
 /* Perform simple buffered read on a file at path */
 func bufferedRead(path string) ([]byte, *GophorError) {
