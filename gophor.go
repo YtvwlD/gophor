@@ -136,9 +136,16 @@ func setupServer() []*GophorListener {
             /* These values should be coming straight out of /etc/passwd, so assume safe */
             uid, _ = strconv.Atoi(user.Uid)
             gid, _ = strconv.Atoi(user.Gid)
+
+            /* Double check this isn't a privileged account */
+            if uid == 0 || gid == 0 {
+                Config.LogSystemFatal("Gophor does not support running with any kind of privileges, please supply a non-root user account\n")
+            }
         }
     } else {
-        if *execAs != "" {
+        if syscall.Getuid() == 0 || syscall.Getgid() == 0 {
+            Config.LogSystemFatal("Gophor (obviously) does not support running rootless, as root -.-\n")
+        } else if *execAs != "" {
             Config.LogSystemFatal("Gophor does not support dropping privileges when running rootless\n")
         }
     }
@@ -247,29 +254,15 @@ func chrootServerDir(path string) {
 }
 
 func setPrivileges(execUid, execGid int) {
-    /* Check root privileges aren't being requested */
-    if execUid == 0 || execGid == 0 {
-        Config.LogSystemFatal("Gophor does not support directly running as root\n")
+    /* C-bind setgid */
+    result := C.setgid(C.uint(execGid))
+    if result != 0 {
+        Config.LogSystemFatal("Failed setting GID %d: %d\n", execGid, result)
     }
 
-    /* Get currently running user info */
-    uid, gid := syscall.Getuid(), syscall.Getgid()
-
-    /* Set GID if necessary */
-    if gid != execUid {
-        /* C-bind setgid */
-        result := C.setgid(C.uint(execGid))
-        if result != 0 {
-            Config.LogSystemFatal("Failed setting GID %d: %d\n", execGid, result)
-        }
-    }
-
-    /* Set UID if necessary */
-    if uid != execGid {
-        /* C-bind setuid */
-        result := C.setuid(C.uint(execUid))
-        if result != 0 {
-            Config.LogSystemFatal("Failed setting UID %d: %d\n", execUid, result)
-        }
+    /* C-bind setuid */
+    result = C.setuid(C.uint(execUid))
+    if result != 0 {
+        Config.LogSystemFatal("Failed setting UID %d: %d\n", execUid, result)
     }
 }
