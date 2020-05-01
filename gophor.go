@@ -70,12 +70,12 @@ func setupServer() []*GophorListener {
     /* First we setup all the flags and parse them... */
 
     /* Base server settings */
-    serverRoot        := flag.String("root", "/var/gopher", "Change server root directory.")
+    serverRoot        := flag.String("root-dir", "/var/gopher", "Change server root directory.")
     serverHostname    := flag.String("hostname", "127.0.0.1", "Change server hostname (FQDN).")
     serverPort        := flag.Int("port", 70, "Change server port (0 to disable unencrypted traffic).")
     serverBindAddr    := flag.String("bind-addr", "127.0.0.1", "Change server socket bind address")
     execAs            := flag.String("user", "", "Drop to supplied user's UID and GID permissions before execution.")
-    rootless          := flag.Bool("rootless", false, "Run without root (no chroot, no change of privileges).")
+    rootless          := flag.Bool("rootless", false, "Run without root privileges (no chroot, no privilege drop, no restricted port nums).")
 
     /* User supplied caps.txt information */
     serverDescription := flag.String("description", "Gophor: a Gopher server in GoLang", "Change server description in generated caps.txt.")
