@@ -125,12 +125,12 @@ func _listDir(request *FileSystemRequest, hidden map[string]bool) ([]byte, *Goph
         switch {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
-                itemPath := request.Path.SelectorPathJoin(file.Name())
+                itemPath := request.Path.JoinSelectorPath(file.Name())
                 *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
-                itemPath := request.Path.SelectorPathJoin(file.Name())
+                itemPath := request.Path.JoinSelectorPath(file.Name())
                 itemType := getItemType(itemPath)
                 *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 
@@ -153,12 +153,12 @@ func _listDirRegexMatch(request *FileSystemRequest, hidden map[string]bool) ([]b
         switch {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
-                itemPath := request.Path.SelectorPathJoin(file.Name())
+                itemPath := request.Path.JoinSelectorPath(file.Name())
                 *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
-                itemPath := request.Path.SelectorPathJoin(file.Name())
+                itemPath := request.Path.JoinSelectorPath(file.Name())
                 itemType := getItemType(itemPath)
                 *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 

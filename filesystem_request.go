@@ -21,7 +21,6 @@ type FileSystemRequest struct {
 type RequestPath struct {
     Root    string
     Path    string
-    AbsPath string
 }
 
 func NewRequestPath(root, request string) *RequestPath {
@@ -38,7 +37,7 @@ func NewRequestPath(root, request string) *RequestPath {
         }
     }
 
-    return &RequestPath{ root, requestPath, "" }
+    return &RequestPath{ root, requestPath }
 }
 
 func (rp *RequestPath) SelectorPath() string {
@@ -50,17 +49,14 @@ func (rp *RequestPath) SelectorPath() string {
 }
 
 func (rp *RequestPath) AbsolutePath() string {
-    if rp.AbsPath == "" {
-        rp.AbsPath = path.Join(rp.Root, rp.Path)
-    }
-    return rp.AbsPath
+    return path.Join(rp.Root, rp.Path)
 }
 
 func (rp *RequestPath) RelativePath() string {
     return rp.Path
 }
 
-func (rp *RequestPath) SelectorPathJoin(extPath string) string {
+func (rp *RequestPath) JoinSelectorPath(extPath string) string {
     if rp.Path == "." {
         return path.Join("/", extPath)
     } else {
@@ -92,13 +88,13 @@ func (rp *RequestPath) TrimAbsoluteSuffix(suffix string) string {
     return strings.TrimSuffix(rp.AbsolutePath(), suffix)
 }
 
-func (rp *RequestPath) NewJoinedPathFromCurrent(extPath string) *RequestPath {
+func (rp *RequestPath) NewJoinPathFromCurrent(extPath string) *RequestPath {
     /* DANGER THIS DOES NOT CHECK FOR BACK-DIR TRAVERSALS */
-    return &RequestPath{ rp.Root, rp.JoinRelativePath(extPath), "" }
+    return &RequestPath{ rp.Root, rp.JoinRelativePath(extPath) }
 }
 
-func (rp *RequestPath) NewTrimmedPathFromCurrent(trimSuffix string) *RequestPath {
-    return &RequestPath{ rp.Root, rp.TrimRelativeSuffix(trimSuffix), "" }
+func (rp *RequestPath) NewTrimPathFromCurrent(trimSuffix string) *RequestPath {
+    return &RequestPath{ rp.Root, rp.TrimRelativeSuffix(trimSuffix) }
 }
 
 func (rp *RequestPath) NewPathAtRoot(extPath string) *RequestPath {

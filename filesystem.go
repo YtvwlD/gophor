@@ -75,7 +75,7 @@ func (fs *FileSystem) HandleRequest(requestPath *RequestPath, host *ConnHost) ([
         /* Directory */
         case FileTypeDir:
             /* Check Gophermap exists */
-            gophermapPath := requestPath.NewJoinedPathFromCurrent(GophermapFileStr)
+            gophermapPath := requestPath.NewJoinPathFromCurrent(GophermapFileStr)
             _, err := os.Stat(gophermapPath.AbsolutePath())
 
             var output []byte

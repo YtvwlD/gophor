@@ -232,7 +232,7 @@ func readGophermap(requestPath *RequestPath) ([]GophermapSection, *GophorError) 
 
                 case TypeEndBeginList:
                     /* Create GophermapDirListing object then break out at end of loop */
-                    dirPath := requestPath.NewTrimmedPathFromCurrent(GophermapFileStr)
+                    dirPath := requestPath.NewTrimPathFromCurrent(GophermapFileStr)
                     dirListing = NewGophermapDirListing(dirPath)
                     return false
 
