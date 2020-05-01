@@ -1,7 +1,6 @@
 package main
 
 import (
-    "path"
     "strings"
 )
 
@@ -106,16 +105,16 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
             /* Do nothing */
     }
 
-    /* Sanitize supplied path */
-    requestPath := sanitizePath(dataStr)
+    /* Get request path from data string */
+    requestPath := NewRequestPath(Config.RootDir, dataStr)
 
     /* Append lastline */
     response, gophorErr := Config.FileSystem.HandleRequest(requestPath, worker.Conn.Host)
     if gophorErr != nil {
-        worker.LogError("Failed to serve: %s\n", requestPath)
+        worker.LogError("Failed to serve: %s\n", requestPath.AbsolutePath())
         return gophorErr
     }
-    worker.Log("Served: %s\n", requestPath)
+    worker.Log("Served: %s\n", requestPath.AbsolutePath())
 
     /* Serve response */
     return worker.SendRaw(response)
@@ -139,17 +138,4 @@ func readUpToFirstTabOrCrlf(data []byte) string {
     }
 
     return dataStr
-}
-
-func sanitizePath(dataStr string) string {
-    /* Clean path and trim '/' prefix if still exists */
-    requestPath := strings.TrimPrefix(path.Clean(dataStr), "/")
-
-    if requestPath == "." {
-        requestPath = "/"
-    } else if !strings.HasPrefix(requestPath, "/") {
-        requestPath = "/" + requestPath
-    }
-
-    return requestPath
 }

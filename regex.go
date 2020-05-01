@@ -6,8 +6,6 @@ import (
 )
 
 func compileUserRestrictedFilesRegex(restrictedFiles string) []*regexp.Regexp {
-    Config.LogSystem("Compiling restricted file regular expressions\n")
-
     /* Return slice */
     restrictedFilesRegex := make([]*regexp.Regexp, 0)
 

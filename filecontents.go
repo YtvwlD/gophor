@@ -33,7 +33,7 @@ func (fc *GeneratedFileContents) Clear() {
  * read bytes in a slice and returns when requested.
  */
 type RegularFileContents struct {
-    path     string
+    path     *RequestPath
     contents []byte
 }
 
@@ -47,7 +47,7 @@ func (fc *RegularFileContents) Render(request *FileSystemRequest) []byte {
 func (fc *RegularFileContents) Load() *GophorError {
     /* Load the file into memory */
     var gophorErr *GophorError
-    fc.contents, gophorErr = bufferedRead(fc.path)
+    fc.contents, gophorErr = bufferedRead(fc.path.AbsolutePath())
     return gophorErr
 }
 
@@ -62,7 +62,7 @@ func (fc *RegularFileContents) Clear() {
  * when requested.
  */
 type GophermapContents struct {
-    path     string
+    path     *RequestPath
     sections []GophermapSection
 }
 
@@ -132,11 +132,11 @@ func (s *GophermapText) Render(request *FileSystemRequest) ([]byte, *GophorError
  * Render() call is received.
  */
 type GophermapDirListing struct {
-    Path   string
+    Path   *RequestPath
     Hidden map[string]bool
 }
 
-func NewGophermapDirListing(path string) *GophermapDirListing {
+func NewGophermapDirListing(path *RequestPath) *GophermapDirListing {
     return &GophermapDirListing{ path, nil }
 }
 
@@ -147,7 +147,7 @@ func (s *GophermapDirListing) Render(request *FileSystemRequest) ([]byte, *Gopho
     return listDir(&FileSystemRequest{ s.Path, request.Host }, s.Hidden)
 }
 
-func readGophermap(path string) ([]GophermapSection, *GophorError) {
+func readGophermap(requestPath *RequestPath) ([]GophermapSection, *GophorError) {
     /* Create return slice */
     sections := make([]GophermapSection, 0)
 
@@ -161,7 +161,7 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
     var dirListing *GophermapDirListing
 
     /* Perform buffered scan with our supplied splitter and iterators */
-    gophorErr := bufferedScan(path,
+    gophorErr := bufferedScan(requestPath.AbsolutePath(),
         func(scanner *bufio.Scanner) bool {
             line := scanner.Text()
 
@@ -189,14 +189,15 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
 
                 case TypeSubGophermap:
                     /* Check if we've been supplied subgophermap or regular file */
-                    if strings.HasSuffix(line[1:], GophermapFileStr) {
+                    if requestPath.HasRelativeSuffix(GophermapFileStr) {
                         /* Ensure we haven't been passed the current gophermap. Recursion bad! */
-                        if line[1:] == path {
+                        if line[1:] == requestPath.RelativePath() {
                             break
                         }
 
                         /* Treat as any other gopher map! */
-                        submapSections, gophorErr := readGophermap(line[1:])
+                        subPath := requestPath.NewPathAtRoot(line[1:])
+                        submapSections, gophorErr := readGophermap(subPath)
                         if gophorErr != nil {
                             /* Failed to read subgophermap, insert error line */
                             sections = append(sections, NewGophermapText(buildInfoLine("Error reading subgophermap: "+line[1:])))
@@ -207,7 +208,8 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
                         /* Treat as regular file, but we need to replace Unix line endings
                          * with gophermap line endings
                          */
-                        fileContents, gophorErr := readIntoGophermap(line[1:])
+                        subPath := requestPath.NewPathAtRoot(line[1:])
+                        fileContents, gophorErr := readIntoGophermap(subPath.AbsolutePath())
                         if gophorErr != nil {
                             /* Failed to read file, insert error line */
                             Config.LogSystem("Error: %s\n", gophorErr)
@@ -230,7 +232,8 @@ func readGophermap(path string) ([]GophermapSection, *GophorError) {
 
                 case TypeEndBeginList:
                     /* Create GophermapDirListing object then break out at end of loop */
-                    dirListing = NewGophermapDirListing(strings.TrimSuffix(path, GophermapFileStr))
+                    dirPath := requestPath.NewTrimmedPathFromCurrent(GophermapFileStr)
+                    dirListing = NewGophermapDirListing(dirPath)
                     return false
 
                 default:

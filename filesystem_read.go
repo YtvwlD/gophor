@@ -2,7 +2,6 @@ package main
 
 import (
     "os"
-    "path"
     "bytes"
     "io"
     "sort"
@@ -126,12 +125,12 @@ func _listDir(request *FileSystemRequest, hidden map[string]bool) ([]byte, *Goph
         switch {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
-                itemPath := path.Join(request.Path, file.Name())
+                itemPath := request.Path.SelectorPathJoin(file.Name())
                 *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
-                itemPath := path.Join(request.Path, file.Name())
+                itemPath := request.Path.SelectorPathJoin(file.Name())
                 itemType := getItemType(itemPath)
                 *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 
@@ -154,12 +153,12 @@ func _listDirRegexMatch(request *FileSystemRequest, hidden map[string]bool) ([]b
         switch {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
-                itemPath := path.Join(request.Path, file.Name())
+                itemPath := request.Path.SelectorPathJoin(file.Name())
                 *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
-                itemPath := path.Join(request.Path, file.Name())
+                itemPath := request.Path.SelectorPathJoin(file.Name())
                 itemType := getItemType(itemPath)
                 *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 
@@ -171,7 +170,7 @@ func _listDirRegexMatch(request *FileSystemRequest, hidden map[string]bool) ([]b
 
 func _listDirBase(request *FileSystemRequest, iterFunc func(dirContents *[]byte, file os.FileInfo)) ([]byte, *GophorError) {
     /* Open directory file descriptor */
-    fd, err := os.Open(request.Path)
+    fd, err := os.Open(request.Path.AbsolutePath())
     if err != nil {
         Config.LogSystemError("failed to open %s: %s\n", request.Path, err.Error())
         return nil, &GophorError{ FileOpenErr, err }
@@ -191,11 +190,11 @@ func _listDirBase(request *FileSystemRequest, iterFunc func(dirContents *[]byte,
     dirContents := make([]byte, 0)
 
     /* First add a title + a space */
-    dirContents = append(dirContents, buildLine(TypeInfo, "[ "+request.Host.Name+request.Path+" ]", "TITLE", NullHost, NullPort)...)
+    dirContents = append(dirContents, buildLine(TypeInfo, "[ "+request.Host.Name+request.Path.SelectorPath()+" ]", "TITLE", NullHost, NullPort)...)
     dirContents = append(dirContents, buildInfoLine("")...)
 
     /* Add a 'back' entry. GoLang Readdir() seems to miss this */
-    dirContents = append(dirContents, buildLine(TypeDirectory, "..", path.Join(fd.Name(), ".."), request.Host.Name, request.Host.Port)...)
+    dirContents = append(dirContents, buildLine(TypeDirectory, "..", request.Path.JoinRelativePath(".."), request.Host.Name, request.Host.Port)...)
 
     /* Walk through files :D */
     for _, file := range files { iterFunc(&dirContents, file) }

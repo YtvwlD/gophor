@@ -3,7 +3,6 @@ package main
 import (
     "os"
     "sync"
-    "path"
     "time"
     "strings"
 )
@@ -34,54 +33,55 @@ func (fs *FileSystem) Init(size int, fileSizeMax float64) {
     fs.CacheFileMax = int64(BytesInMegaByte * fileSizeMax)
 }
 
-func (fs *FileSystem) HandleRequest(requestPath string, host *ConnHost) ([]byte, *GophorError) {
-    /* Stat filesystem for request's file type */
-    fileType := FileTypeDir;
-    if requestPath != "/" {
-        stat, err := os.Stat(requestPath)
-        if err != nil {
-            /* Check file isn't in cache before throwing in the towel */
-            fs.CacheMutex.RLock()
-            file := fs.CacheMap.Get(requestPath)
-            if file == nil {
-                fs.CacheMutex.RUnlock()
-                return nil, &GophorError{ FileStatErr, err }
-            }
+func (fs *FileSystem) HandleRequest(requestPath *RequestPath, host *ConnHost) ([]byte, *GophorError) {
+    /* Get absolute path */
+    absPath := requestPath.AbsolutePath()
 
-            /* It's there! Get contents, unlock and return */
-            file.Mutex.RLock()
-            b := file.Contents(&FileSystemRequest{ requestPath, host })
-            file.Mutex.RUnlock()
-
+    /* Get filesystem stat, check it exists! */
+    stat, err := os.Stat(absPath)
+    if err != nil {
+        /* Check file isn't in cache before throwing in the towel */
+        fs.CacheMutex.RLock()
+        file := fs.CacheMap.Get(absPath)
+        if file == nil {
             fs.CacheMutex.RUnlock()
-            return b, nil
+            return nil, &GophorError{ FileStatErr, err }
         }
 
-        /* Set file type for later handling */
-        switch {
-            case stat.Mode() & os.ModeDir != 0:
-                /* do nothing, already set :) */
-                break
+        /* It's there! Get contents, unlock and return */
+        file.Mutex.RLock()
+        b := file.Contents(&FileSystemRequest{ requestPath, host })
+        file.Mutex.RUnlock()
 
-            case stat.Mode() & os.ModeType == 0:
-                fileType = FileTypeRegular
-
-            default:
-                fileType = FileTypeBad
-        }
+        fs.CacheMutex.RUnlock()
+        return b, nil
     }
 
+    /* Using stat, set file type for later handling */
+    var fileType FileType
+    switch {
+        case stat.Mode() & os.ModeDir != 0:
+            fileType = FileTypeDir
+
+        case stat.Mode() & os.ModeType == 0:
+            fileType = FileTypeRegular
+
+        default:
+            fileType = FileTypeBad
+    }
+
+    /* Handle file type */
     switch fileType {
         /* Directory */
         case FileTypeDir:
             /* Check Gophermap exists */
-            gophermapPath := path.Join(requestPath, GophermapFileStr)
-            _, err := os.Stat(gophermapPath)
+            gophermapPath := requestPath.NewJoinedPathFromCurrent(GophermapFileStr)
+            _, err := os.Stat(gophermapPath.AbsolutePath())
 
             var output []byte
             var gophorErr *GophorError
             if err == nil {
-                /* Gophermap exists, serve this! */
+                /* Gophermap exists, update requestPath and serve this! */
                 output, gophorErr = fs.FetchFile(&FileSystemRequest{ gophermapPath, host })
             } else {
                 /* No gophermap, serve directory listing */
@@ -110,7 +110,7 @@ func (fs *FileSystem) HandleRequest(requestPath string, host *ConnHost) ([]byte,
 func (fs *FileSystem) FetchFile(request *FileSystemRequest) ([]byte, *GophorError) {
     /* Get cache map read lock then check if file in cache map */
     fs.CacheMutex.RLock()
-    file := fs.CacheMap.Get(request.Path)
+    file := fs.CacheMap.Get(request.Path.AbsolutePath())
 
     if file != nil {
         /* File in cache -- before doing anything get file read lock */
@@ -139,7 +139,7 @@ func (fs *FileSystem) FetchFile(request *FileSystemRequest) ([]byte, *GophorErro
         /* Perform filesystem stat ready for checking file size later.
          * Doing this now allows us to weed-out non-existent files early
          */
-        stat, err := os.Stat(request.Path)
+        stat, err := os.Stat(request.Path.AbsolutePath())
         if err != nil {
             /* Error stat'ing file, unlock read mutex then return error */
             fs.CacheMutex.RUnlock()
@@ -148,7 +148,7 @@ func (fs *FileSystem) FetchFile(request *FileSystemRequest) ([]byte, *GophorErro
 
         /* Create new file contents object using supplied function */
         var contents FileContents
-        if strings.HasSuffix(request.Path, "/"+GophermapFileStr) {
+        if strings.HasSuffix(request.Path.RelativePath(), "/"+GophermapFileStr) {
             contents = &GophermapContents{ request.Path, nil }
         } else {
             contents = &RegularFileContents{ request.Path, nil }
@@ -179,7 +179,7 @@ func (fs *FileSystem) FetchFile(request *FileSystemRequest) ([]byte, *GophorErro
         fs.CacheMutex.Lock()
 
         /* Put file in the FixedMap */
-        fs.CacheMap.Put(request.Path, file)
+        fs.CacheMap.Put(request.Path.AbsolutePath(), file)
 
         /* Before unlocking cache mutex, lock file read for upcoming call to .Contents() */
         file.Mutex.RLock()
@@ -197,19 +197,6 @@ func (fs *FileSystem) FetchFile(request *FileSystemRequest) ([]byte, *GophorErro
     fs.CacheMutex.RUnlock()
 
     return b, nil
-}
-
-/* FileSystemRequest:
- * Makes a request to the filesystem either through
- * the FileCache or directly to a function like listDir().
- * It carries the requested filesystem path and any extra
- * needed information, for the moment just a set of details
- * about the virtual host.. Opens things up a lot more for
- * the future :)
- */
-type FileSystemRequest struct {
-    Path string
-    Host *ConnHost
 }
 
 /* File:
