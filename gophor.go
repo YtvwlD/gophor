@@ -123,7 +123,10 @@ func setupServer() []*GophorListener {
     var uid, gid int
     if !*rootless {
         /* Getting UID+GID for supplied user, has to be done BEFORE chroot */
-        if *execAs == "" || *execAs == "root" {
+        if *execAs == "" {
+            /* No user supplied :( */
+            Config.LogSystemFatal("Gophor requires a supplied user name to drop privileges to.\n")
+        } else if *execAs == "root" {
             /* Naughty, naughty! */
             Config.LogSystemFatal("Gophor does not support directly running as root, please supply a non-root user account\n")
         } else {
