@@ -18,9 +18,9 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 - ZERO external dependencies.
 
-- Security focused -- chroots into server direrctory and drops
-  privileges. `maybe wait until stable release before use outside of hobby
-  setups.`
+- Security focused -- by default chroots to server directory and drops
+  privileges, though `-rootless` flag may be applied to skip these steps
+  (e.g. when running on a shared host).
 
 - LRU file caching -- with user-controlled cache size, max cached file size
   and cache refresh frequency.
@@ -42,7 +42,7 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 ```
 gophor [args]
-       -root                Change server root directory.
+       -root-dir            Change server root directory.
 
        -port                Change server NON-TLS listening port.
 
@@ -80,6 +80,9 @@ gophor [args]
        -admin-email         Change admin email in generated caps.txt.
 
        -geoloc              Change geolocation in generated caps.txt.
+
+       -rootless            Run without root privileges (no chroot, no privilege
+                            drop, no restricted ports).
 
        -version             Print version string.
 ```
@@ -213,16 +216,16 @@ Shortterm:
 
 - Set default charset -- need to think about implementation here...
 
+- Neaten codebase after recent RequestPath addition.
+
 - Fix file cache only updating if main gophermap changes (but not sub files)
   -- need to either rethink how we keep track of files, or rethink how
   gophermaps are stored in memory.
 
 Longterm:
 
-- Finish inline shell scripting support -- current thinking is to either
-  perform a C fork very early on, or create a separate modules binary, and
-  either way the 2 processes interact via some IPC method. Could allow for
-  other modules too.
+- Finish inline shell scripting support -- current thinking is to only allow
+  during rootless operation.
 
 - Rotating logs -- have a check on start for a file-size, rotate out if the
   file is too large. Possibly checks during run-time too?
