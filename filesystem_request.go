@@ -21,9 +21,10 @@ type FileSystemRequest struct {
 type RequestPath struct {
     Root    string
     Path    string
+    AbsPath string /* Cache the absolute path */
 }
 
-func NewRequestPath(root, request string) *RequestPath {
+func NewSanitizedRequestPath(root, request string) *RequestPath {
     /* Here we must sanitize the request path. Start with a clean :) */
     requestPath := path.Clean(request)
 
@@ -37,7 +38,11 @@ func NewRequestPath(root, request string) *RequestPath {
         }
     }
 
-    return &RequestPath{ root, requestPath }
+    return NewRequestPath(root, requestPath)
+}
+
+func NewRequestPath(root, relative string) *RequestPath {
+    return &RequestPath{ root, relative, path.Join(root, relative) }
 }
 
 func (rp *RequestPath) SelectorPath() string {
@@ -49,7 +54,7 @@ func (rp *RequestPath) SelectorPath() string {
 }
 
 func (rp *RequestPath) AbsolutePath() string {
-    return path.Join(rp.Root, rp.Path)
+    return rp.AbsPath
 }
 
 func (rp *RequestPath) RelativePath() string {
@@ -90,14 +95,15 @@ func (rp *RequestPath) TrimAbsoluteSuffix(suffix string) string {
 
 func (rp *RequestPath) NewJoinPathFromCurrent(extPath string) *RequestPath {
     /* DANGER THIS DOES NOT CHECK FOR BACK-DIR TRAVERSALS */
-    return &RequestPath{ rp.Root, rp.JoinRelativePath(extPath) }
+    return NewRequestPath(rp.Root, rp.JoinRelativePath(extPath))
 }
 
 func (rp *RequestPath) NewTrimPathFromCurrent(trimSuffix string) *RequestPath {
-    return &RequestPath{ rp.Root, rp.TrimRelativeSuffix(trimSuffix) }
+    /* DANGER THIS DOES NOT CHECK FOR BACK-DIR TRAVERSALS */
+    return NewRequestPath(rp.Root, rp.TrimRelativeSuffix(trimSuffix))
 }
 
 func (rp *RequestPath) NewPathAtRoot(extPath string) *RequestPath {
     /* Sanitized and safe (hopefully) */
-    return NewRequestPath(rp.Root, extPath)
+    return NewSanitizedRequestPath(rp.Root, extPath)
 }

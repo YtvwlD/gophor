@@ -4,7 +4,6 @@ import (
     "os"
     "sync"
     "time"
-    "strings"
 )
 
 type FileType int
@@ -148,7 +147,7 @@ func (fs *FileSystem) FetchFile(request *FileSystemRequest) ([]byte, *GophorErro
 
         /* Create new file contents object using supplied function */
         var contents FileContents
-        if strings.HasSuffix(request.Path.RelativePath(), "/"+GophermapFileStr) {
+        if request.Path.HasAbsoluteSuffix("/"+GophermapFileStr) {
             contents = &GophermapContents{ request.Path, nil }
         } else {
             contents = &RegularFileContents{ request.Path, nil }

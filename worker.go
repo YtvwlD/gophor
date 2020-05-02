@@ -106,7 +106,7 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     }
 
     /* Get request path from data string */
-    requestPath := NewRequestPath(worker.Conn.Host.RootDir, dataStr)
+    requestPath := NewSanitizedRequestPath(worker.Conn.Host.RootDir, dataStr)
 
     /* Append lastline */
     response, gophorErr := Config.FileSystem.HandleRequest(requestPath, worker.Conn.Host)
