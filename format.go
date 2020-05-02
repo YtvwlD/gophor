@@ -210,3 +210,15 @@ func parseLineType(line string) ItemType {
 
     return ItemType(line[0])
 }
+
+/* Replace standard replacement strings */
+func replaceStrings(str string, connHost *ConnHost) []byte {
+    str = strings.Replace(str, ReplaceStrHostname, connHost.Name, -1)
+    str = strings.Replace(str, ReplaceStrPort, connHost.Port, -1)
+    return []byte(str)
+}
+
+/* Replace new-line characters */
+func replaceNewLines(str string) string {
+    return strings.Replace(str, "\n", "", -1)
+}

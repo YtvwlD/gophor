@@ -3,7 +3,6 @@ package main
 import (
     "bytes"
     "bufio"
-    "strings"
 )
 
 /* GeneratedFileContents:
@@ -278,7 +277,7 @@ func readIntoGophermap(path string) ([]byte, *GophorError) {
             }
 
             /* Replace the newline character */
-            line = strings.Replace(line, "\n", "", -1)
+            line = replaceNewLines(line)
 
             /* Iterate through returned str, reflowing to new line
              * until all lines < PageWidth
@@ -312,10 +311,4 @@ func minWidth(w int) int {
     } else {
         return Config.PageWidth
     }
-}
-
-func replaceStrings(str string, connHost *ConnHost) []byte {
-    str = strings.Replace(str, ReplaceStrHostname, connHost.Name, -1)
-    str = strings.Replace(str, ReplaceStrPort, connHost.Port, -1)
-    return []byte(str)
 }
