@@ -172,14 +172,14 @@ func _listDirBase(request *FileSystemRequest, iterFunc func(dirContents *[]byte,
     /* Open directory file descriptor */
     fd, err := os.Open(request.Path.AbsolutePath())
     if err != nil {
-        Config.LogSystemError("failed to open %s: %s\n", request.Path, err.Error())
+        Config.SysLog.Error("", "failed to open %s: %s\n", request.Path, err.Error())
         return nil, &GophorError{ FileOpenErr, err }
     }
 
     /* Read files in directory */
     files, err := fd.Readdir(-1)
     if err != nil {
-        Config.LogSystemError("failed to enumerate dir %s: %s\n", request.Path, err.Error())
+        Config.SysLog.Error("", "failed to enumerate dir %s: %s\n", request.Path, err.Error())
         return nil, &GophorError{ DirListErr, err }
     }
 

@@ -212,7 +212,7 @@ func readGophermap(requestPath *RequestPath) ([]GophermapSection, *GophorError) 
                         fileContents, gophorErr := readIntoGophermap(subPath.AbsolutePath())
                         if gophorErr != nil {
                             /* Failed to read file, insert error line */
-                            Config.LogSystem("Error: %s\n", gophorErr)
+                            Config.SysLog.Info("", "Error: %s\n", gophorErr)
                             sections = append(sections, NewGophermapText(buildInfoLine("Error reading subgophermap: "+line[1:])))
                         } else {
                             sections = append(sections, NewGophermapText(fileContents))

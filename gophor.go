@@ -43,12 +43,12 @@ func main() {
     /* Start accepting connections on any supplied listeners */
     for _, l := range listeners {
         go func() {
-            Config.LogSystem("Listening on: gopher://%s\n", l.Addr())
+            Config.SysLog.Info("", "Listening on: gopher://%s\n", l.Addr())
 
             for {
                 newConn, err := l.Accept()
                 if err != nil {
-                    Config.LogSystemError("Error accepting connection: %s\n", err.Error())
+                    Config.SysLog.Error("", "Error accepting connection: %s\n", err.Error())
                     continue
                 }
 
@@ -62,7 +62,7 @@ func main() {
 
     /* When OS signal received, we close-up */
     sig := <-signals
-    Config.LogSystem("Signal received: %v. Shutting down...\n", sig)
+    Config.SysLog.Info("", "Signal received: %v. Shutting down...\n", sig)
     os.Exit(0)
 }
 
@@ -92,7 +92,8 @@ func setupServer() []*GophorListener {
     /* Logging settings */
     systemLogPath     := flag.String("system-log", "", "Change server system log file (blank outputs to stderr).")
     accessLogPath     := flag.String("access-log", "", "Change server access log file (blank outputs to stderr).")
-    logType           := flag.Int("log-type", 0, "Change server log file handling -- 0:default 1:disable")
+    logOutput         := flag.String("log-output", "stderr", "Change server log file handling (disable|stderr|file)")
+    logOpts           := flag.String("log-opts", "timestamp,ip", "Comma-separated list of log options (timestamp|ip)")
 
     /* Cache settings */
     cacheCheckFreq    := flag.String("cache-check", "60s", "Change file cache freshness check frequency.")
@@ -117,7 +118,7 @@ func setupServer() []*GophorListener {
     Config.FooterText  = formatGophermapFooter(*footerText, !*footerSeparator)
 
     /* Setup Gophor logging system */
-    Config.SystemLogger, Config.AccessLogger = setupLogging(*logType, *systemLogPath, *accessLogPath)
+    Config.SysLog, Config.AccLog = setupLoggers(*logOutput, *logOpts, *systemLogPath, *accessLogPath)
 
     /* If running as root, get ready to drop privileges */
     var uid, gid int
@@ -125,15 +126,15 @@ func setupServer() []*GophorListener {
         /* Getting UID+GID for supplied user, has to be done BEFORE chroot */
         if *execAs == "" {
             /* No user supplied :( */
-            Config.LogSystemFatal("Gophor requires a supplied user name to drop privileges to.\n")
+            Config.SysLog.Fatal("", "Gophor requires a supplied user name to drop privileges to.\n")
         } else if *execAs == "root" {
             /* Naughty, naughty! */
-            Config.LogSystemFatal("Gophor does not support directly running as root, please supply a non-root user account\n")
+            Config.SysLog.Fatal("", "Gophor does not support directly running as root, please supply a non-root user account\n")
         } else {
             /* Try lookup specified username */
             user, err := user.Lookup(*execAs)
             if err != nil {
-                Config.LogSystemFatal("Error getting information for requested user %s: %s\n", *execAs, err)
+                Config.SysLog.Fatal("", "Error getting information for requested user %s: %s\n", *execAs, err)
             }
 
             /* These values should be coming straight out of /etc/passwd, so assume safe */
@@ -142,28 +143,28 @@ func setupServer() []*GophorListener {
 
             /* Double check this isn't a privileged account */
             if uid == 0 || gid == 0 {
-                Config.LogSystemFatal("Gophor does not support running with any kind of privileges, please supply a non-root user account\n")
+                Config.SysLog.Info("", "Gophor does not support running with any kind of privileges, please supply a non-root user account\n")
             }
         }
     } else {
         if syscall.Getuid() == 0 || syscall.Getgid() == 0 {
-            Config.LogSystemFatal("Gophor (obviously) does not support running rootless, as root -.-\n")
+            Config.SysLog.Info("", "Gophor (obviously) does not support running rootless, as root -.-\n")
         } else if *execAs != "" {
-            Config.LogSystemFatal("Gophor does not support dropping privileges when running rootless\n")
+            Config.SysLog.Info("", "Gophor does not support dropping privileges when running rootless\n")
         }
     }
 
     /* Enter server dir */
     enterServerDir(*serverRoot)
-    Config.LogSystem("Entered server directory: %s\n", *serverRoot)
+    Config.SysLog.Info("", "Entered server directory: %s\n", *serverRoot)
 
     /* Try enter chroot if requested */
     if *rootless {
-        Config.LogSystem("Running rootless, server root set: %s\n", *serverRoot)
+        Config.SysLog.Info("", "Running rootless, server root set: %s\n", *serverRoot)
     } else {
         chrootServerDir(*serverRoot)
         *serverRoot = "/"
-        Config.LogSystem("Chroot success, new root: %s\n", *serverRoot)
+        Config.SysLog.Info("", "Chroot success, new root: %s\n", *serverRoot)
     }
 
     /* Setup listeners */
@@ -173,25 +174,25 @@ func setupServer() []*GophorListener {
     if *serverPort != 0 {
         l, err := BeginGophorListen(*serverBindAddr, *serverHostname, strconv.Itoa(*serverPort), *serverRoot)
         if err != nil {
-            Config.LogSystemFatal("Error setting up (unencrypted) listener: %s\n", err.Error())
+            Config.SysLog.Fatal("", "Error setting up (unencrypted) listener: %s\n", err.Error())
         }
         listeners = append(listeners, l)
     } else {
-        Config.LogSystemFatal("No valid port to listen on\n")
+        Config.SysLog.Fatal("", "No valid port to listen on\n")
     }
 
     /* Drop not rootless, privileges to retrieved UID+GID */
     if !*rootless {
         setPrivileges(uid, gid)
-        Config.LogSystem("Successfully dropped privileges to UID:%d GID:%d\n", uid, gid)
+        Config.SysLog.Info("", "Successfully dropped privileges to UID:%d GID:%d\n", uid, gid)
     } else {
-        Config.LogSystem("Running as current user\n")
+        Config.SysLog.Info("", "Running as current user\n")
     }
 
     /* Compile user restricted files regex if supplied */
     if *restrictedFiles != "" {
         Config.RestrictedFiles = compileUserRestrictedFilesRegex(*restrictedFiles)
-        Config.LogSystem("Restricted files regular expressions compiled\n")
+        Config.SysLog.Info("", "Restricted files regular expressions compiled\n")
 
         /* Setup the listDir function to use regex matching */
         listDir = _listDirRegexMatch
@@ -208,7 +209,7 @@ func setupServer() []*GophorListener {
         /* Parse suppled cache check frequency time */
         fileMonitorSleepTime, err := time.ParseDuration(*cacheCheckFreq)
         if err != nil {
-            Config.LogSystemFatal("Error parsing supplied cache check frequency %s: %s\n", *cacheCheckFreq, err)
+            Config.SysLog.Fatal("", "Error parsing supplied cache check frequency %s: %s\n", *cacheCheckFreq, err)
         }
 
         /* Init file cache */
@@ -221,11 +222,11 @@ func setupServer() []*GophorListener {
 
         /* Start file cache freshness checker */
         go startFileMonitor(fileMonitorSleepTime)
-        Config.LogSystem("File caching enabled with: maxcount=%d maxsize=%.3fMB checkfreq=%s\n", *cacheSize, *cacheFileSizeMax, fileMonitorSleepTime)
+        Config.SysLog.Info("", "File caching enabled with: maxcount=%d maxsize=%.3fMB checkfreq=%s\n", *cacheSize, *cacheFileSizeMax, fileMonitorSleepTime)
     } else {
         /* File caching disabled, init with zero max size so nothing gets cached */
         Config.FileSystem.Init(2, 0)
-        Config.LogSystem("File caching disabled\n")
+        Config.SysLog.Info("", "File caching disabled\n")
 
         /* Safe to cache policy files now */
         cachePolicyFiles(*serverDescription, *serverAdmin, *serverGeoloc)
@@ -238,20 +239,20 @@ func setupServer() []*GophorListener {
 func enterServerDir(path string) {
     err := syscall.Chdir(path)
     if err != nil {
-        Config.LogSystemFatal("Error changing dir to server root %s: %s\n", path, err.Error())
+        Config.SysLog.Fatal("", "Error changing dir to server root %s: %s\n", path, err.Error())
     }
 }
 
 func chrootServerDir(path string) {
     err := syscall.Chroot(path)
     if err != nil {
-        Config.LogSystemFatal("Error chroot'ing into server root %s: %s\n", path, err.Error())
+        Config.SysLog.Fatal("", "Error chroot'ing into server root %s: %s\n", path, err.Error())
     }
 
     /* Change to server root just to ensure we're sitting at root of chroot */
     err = syscall.Chdir("/")
     if err != nil {
-        Config.LogSystemFatal("Error changing to root of chroot dir: %s\n", err.Error())
+        Config.SysLog.Fatal("", "Error changing to root of chroot dir: %s\n", err.Error())
     }
 }
 
@@ -259,12 +260,12 @@ func setPrivileges(execUid, execGid int) {
     /* C-bind setgid */
     result := C.setgid(C.uint(execGid))
     if result != 0 {
-        Config.LogSystemFatal("Failed setting GID %d: %d\n", execGid, result)
+        Config.SysLog.Fatal("", "Failed setting GID %d: %d\n", execGid, result)
     }
 
     /* C-bind setuid */
     result = C.setuid(C.uint(execUid))
     if result != 0 {
-        Config.LogSystemFatal("Failed setting UID %d: %d\n", execUid, result)
+        Config.SysLog.Fatal("", "Failed setting UID %d: %d\n", execUid, result)
     }
 }

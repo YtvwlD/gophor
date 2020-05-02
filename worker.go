@@ -30,7 +30,7 @@ func (worker *Worker) Serve() {
         /* Buffered read from listener */
         count, err = worker.Conn.Read(buf)
         if err != nil {
-            Config.LogSystemError("Error reading from socket on port %s: %s\n", worker.Conn.Host.Port, err.Error())
+            Config.SysLog.Error("", "Error reading from socket on port %s: %s\n", worker.Conn.Host.Port, err.Error())
             return
         }
 
@@ -45,7 +45,7 @@ func (worker *Worker) Serve() {
 
         /* Hit max read chunk size, send error + close connection */
         if iter == MaxSocketReadChunks {
-            Config.LogSystemError("Reached max socket read size %d. Closing connection...\n", MaxSocketReadChunks*SocketReadBufSize)
+            Config.SysLog.Error("", "Reached max socket read size %d. Closing connection...\n", MaxSocketReadChunks*SocketReadBufSize)
             return
         }
 
@@ -58,7 +58,7 @@ func (worker *Worker) Serve() {
 
     /* Handle any error */
     if gophorErr != nil {
-        Config.LogSystemError("%s\n", gophorErr.Error())
+        Config.SysLog.Error("", "%s\n", gophorErr.Error())
 
         /* Generate response bytes from error code */
         response := generateGopherErrorResponseFromCode(gophorErr.Code)
@@ -82,11 +82,11 @@ func (worker *Worker) SendRaw(b []byte) *GophorError {
 }
 
 func (worker *Worker) Log(format string, args ...interface{}) {
-    Config.LogAccess(worker.Conn.RemoteAddr().String(), format, args...)
+    Config.AccLog.Info("("+worker.Conn.RemoteAddr().String()+") ", format, args...)
 }
 
 func (worker *Worker) LogError(format string, args ...interface{}) {
-    Config.LogAccessError(worker.Conn.RemoteAddr().String(), format, args...)
+    Config.AccLog.Error("("+worker.Conn.RemoteAddr().String()+") ", format, args...)
 }
 
 func (worker *Worker) RespondGopher(data []byte) *GophorError {

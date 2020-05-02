@@ -3,65 +3,135 @@ package main
 import (
     "log"
     "os"
-    "io"
-    "io/ioutil"
+    "strings"
 )
 
-func setupLogging(loggingType int, systemLogPath, accessLogPath string) (*log.Logger, *log.Logger) {
-    /* Setup global logger */
-    log.SetOutput(os.Stderr)
-    log.SetFlags(0)
+const (
+    /* Prefixes */
+    LogPrefixInfo  = ": I :: "
+    LogPrefixError = ": E :: "
+    LogPrefixFatal = ": F :: "
 
-    /* Calculate now, because, *shrug* */
-    useSame := (systemLogPath == accessLogPath)
+    /* Log output types */
+    LogDisabled = "disable"
+    LogToStderr = "stderr"
+    LogToFile   = "file"
 
-    /* Check requested logging type */
-    var systemLogger, accessLogger *log.Logger
-    switch loggingType {
-        case 0:
-            /* Default */
+    /* Log options */
+    LogTimestamps = "timestamp"
+    LogIps        = "ip"
+)
 
-            /* Setup system logger to output to file, or stderr if none supplied */
-            var systemWriter io.Writer
-            if systemLogPath != "" {
-                fd, err := os.OpenFile(systemLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-                if err != nil {
-                    log.Fatalf("Failed to create system logger: %s\n", err.Error())
-                }
-                systemWriter = fd        
-            } else {
-                systemWriter = os.Stderr
-            }
-            systemLogger = log.New(systemWriter, "", log.LstdFlags)
+type LoggerInterface interface {
+    Info(string, string, ...interface{})
+    Error(string, string, ...interface{})
+    Fatal(string, string, ...interface{})
+}
 
-            /* If both output to same, may as well use same logger for both */
-            if useSame {
-                accessLogger = systemLogger
-            }
+type NullLogger struct {}
+func (l *NullLogger) Info(prefix, format string, args ...interface{}) {}
+func (l *NullLogger) Error(prefix, format string, args ...interface{}) {}
+func (l *NullLogger) Fatal(prefix, format string, args ...interface{}) {}
 
-            /* Setup access logger to output to file, or stderr if none supplied */
-            var accessWriter io.Writer
-            if accessLogPath != "" {
-                fd, err := os.OpenFile(accessLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-                if err != nil {
-                    log.Fatalf("Failed to create access logger: %s\n", err.Error())
-                }
-                accessWriter = fd
-            } else {
-                accessWriter = os.Stderr
-            }
-            accessLogger = log.New(accessWriter, "", log.LstdFlags)
+type Logger struct {
+    Logger *log.Logger
+}
 
-        case 1:
-            /* Disable -- pipe logs to "discard". May as well use same for both */
-            systemLogger = log.New(ioutil.Discard, "", 0)
-            accessLogger = systemLogger
+func (l *Logger) Info(prefix, format string, args ...interface{}) {
+    l.Logger.Printf(LogPrefixInfo+prefix+format, args...)
+}
 
-        default:
-            log.Fatalf("Unrecognized logging type: %d\n", loggingType)
+func (l *Logger) Error(prefix, format string, args ...interface{}) {
+    l.Logger.Printf(LogPrefixError+prefix+format, args...)
+}
+
+func (l *Logger) Fatal(prefix, format string, args ...interface{}) {
+    l.Logger.Fatalf(LogPrefixFatal+prefix+format, args...)
+}
+
+type LoggerNoPrefix struct {
+    Logger *log.Logger
+}
+
+func (l *LoggerNoPrefix) Info(prefix, format string, args ...interface{}) {
+    /* Ignore the prefix */
+    l.Logger.Printf(LogPrefixInfo+format, args...)
+}
+
+func (l *LoggerNoPrefix) Error(prefix, format string, args ...interface{}) {
+    /* Ignore the prefix */
+    l.Logger.Printf(LogPrefixError+format, args...)
+}
+
+func (l *LoggerNoPrefix) Fatal(prefix, format string, args ...interface{}) {
+    /* Ignore the prefix */
+    l.Logger.Fatalf(LogPrefixFatal+format, args...)
+}
+
+func setupLoggers(logOutput, logOpts, systemLogPath, accessLogPath string) (LoggerInterface, LoggerInterface) {
+    logIps := false
+    logFlags := 0
+    for _, opt := range strings.Split(logOpts, ",") {
+        switch opt {
+            case "":
+                continue
+
+            case LogTimestamps:
+                logFlags = log.LstdFlags
+
+            case LogIps:
+                logIps = true
+
+            default:
+                log.Fatalf("Unrecognized log opt: %s\n")
+        }
     }
 
-    return systemLogger, accessLogger
+    switch logOutput {
+        case "":
+            /* Assume empty means stderr */
+            fallthrough
+
+        case LogToStderr:
+            /* Return two separate stderr loggers */
+            sysLogger := &LoggerNoPrefix{ NewLoggerToStderr(logFlags) }
+            if logIps {
+                return sysLogger, &Logger{ NewLoggerToStderr(logFlags) }
+            } else {
+                return sysLogger, &LoggerNoPrefix{ NewLoggerToStderr(logFlags) }
+            }
+
+        case LogDisabled:
+            /* Return two pointers to same null logger */
+            nullLogger := &NullLogger{}
+            return nullLogger, nullLogger
+
+        case LogToFile:
+            /* Return two separate file loggers */
+            sysLogger := &Logger{ NewLoggerToFile(systemLogPath, logFlags) }
+            if logIps {
+                return sysLogger, &Logger{ NewLoggerToFile(accessLogPath, logFlags) }
+            } else {
+                return sysLogger, &LoggerNoPrefix{ NewLoggerToFile(accessLogPath, logFlags) }
+            }
+
+        default:
+            log.Fatalf("Unrecognised log output type: %s\n", logOutput)
+            return nil, nil
+    }
+
+}
+
+func NewLoggerToStderr(logFlags int) *log.Logger {
+    return log.New(os.Stderr, "", logFlags)
+}
+
+func NewLoggerToFile(path string, logFlags int) *log.Logger {
+    writer, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+    if err != nil {
+        log.Fatalf("Failed to create logger to file %s: %s\n", path, err.Error())
+    }
+    return log.New(writer, "", logFlags)
 }
 
 func printVersionExit() {

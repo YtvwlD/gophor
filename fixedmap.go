@@ -60,8 +60,6 @@ func (fm *FixedMap) Put(key string, value *File) {
         /* Finally delete the map entry and list element! */
         delete(fm.Map, key)
         fm.List.Remove(element)
-
-        Config.LogSystem("Popped key: %s\n", key)
     }
 }
 

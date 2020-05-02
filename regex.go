@@ -13,7 +13,7 @@ func compileUserRestrictedFilesRegex(restrictedFiles string) []*regexp.Regexp {
     for _, expr := range strings.Split(restrictedFiles, "\n") {
         regex, err := regexp.Compile(expr)
         if err != nil {
-            Config.LogSystemFatal("Failed compiling user restricted files regex: %s\n", expr)
+            Config.SysLog.Fatal("Failed compiling user restricted files regex: %s\n", expr)
         }
         restrictedFilesRegex = append(restrictedFilesRegex, regex)
     }

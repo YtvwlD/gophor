@@ -264,7 +264,7 @@ func startFileMonitor(sleepTime time.Duration) {
         }
 
         /* We shouldn't have reached here */
-        Config.LogSystemFatal("FileCache monitor escaped run loop!\n")
+        Config.SysLog.Fatal("", "FileCache monitor escaped run loop!\n")
     }()
 }
 
@@ -285,7 +285,7 @@ func checkCacheFreshness() {
         stat, err := os.Stat(path)
         if err != nil {
             /* Log file as not in cache, then delete */
-            Config.LogSystemError("Failed to stat file in cache: %s\n", path)
+            Config.SysLog.Error("", "Failed to stat file in cache: %s\n", path)
             Config.FileSystem.CacheMap.Remove(path)
             continue
         }

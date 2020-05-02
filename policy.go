@@ -20,8 +20,6 @@ func cachePolicyFiles(description, admin, geoloc string) {
 
         /* No need to worry about mutexes here, no other goroutines running yet */
         Config.FileSystem.CacheMap.Put("/caps.txt", file)
-
-        Config.LogSystem("Generated policy file: /caps.txt\n")
     }
 
     /* See if caps txt exists, if not generate */
@@ -39,8 +37,6 @@ func cachePolicyFiles(description, admin, geoloc string) {
 
         /* No need to worry about mutexes here, no other goroutines running yet */
         Config.FileSystem.CacheMap.Put("/robots.txt", file)
-
-        Config.LogSystem("Generated policy file: /robots.txt\n")
     }
 }
 
