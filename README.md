@@ -35,8 +35,9 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 - Item type characters beyond RFC 1436 standard (see below).
 
-- Separate system and access logging with output to file if requested (or to
-  disable both).
+- Separate system and access logging with various output options (change
+  output location, change flags to include timestamps or include IPs with
+  access logs).
 
 # Usage
 
