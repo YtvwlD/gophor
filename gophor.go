@@ -159,11 +159,10 @@ func setupServer() []*GophorListener {
 
     /* Try enter chroot if requested */
     if *rootless {
-        Config.RootDir = *serverRoot
         Config.LogSystem("Running rootless, server root set: %s\n", *serverRoot)
     } else {
         chrootServerDir(*serverRoot)
-        Config.RootDir = "/"
+        *serverRoot = "/"
         Config.LogSystem("Chroot success, new root: %s\n", *serverRoot)
     }
 
@@ -172,7 +171,7 @@ func setupServer() []*GophorListener {
 
     /* If requested, setup unencrypted listener */
     if *serverPort != 0 {
-        l, err := BeginGophorListen(*serverBindAddr, *serverHostname, strconv.Itoa(*serverPort))
+        l, err := BeginGophorListen(*serverBindAddr, *serverHostname, strconv.Itoa(*serverPort), *serverRoot)
         if err != nil {
             Config.LogSystemFatal("Error setting up (unencrypted) listener: %s\n", err.Error())
         }

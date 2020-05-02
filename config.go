@@ -13,7 +13,6 @@ import (
  */
 type ServerConfig struct {
     /* Base settings */
-    RootDir         string
 
     /* Content settings */
     FooterText      []byte

@@ -6,8 +6,9 @@ import (
 
 /* Data structure to hold specific host details */
 type ConnHost struct {
-    Name string
-    Port string
+    Name    string
+    Port    string
+    RootDir string
 }
 
 /* Simple wrapper to Listener that holds onto virtual
@@ -19,9 +20,9 @@ type GophorListener struct {
     Host     *ConnHost
 }
 
-func BeginGophorListen(bindAddr, hostname, port string) (*GophorListener, error) {
+func BeginGophorListen(bindAddr, hostname, port, rootDir string) (*GophorListener, error) {
     gophorListener := new(GophorListener)
-    gophorListener.Host = &ConnHost{ hostname, port }
+    gophorListener.Host = &ConnHost{ hostname, port, rootDir }
 
     var err error
     gophorListener.Listener, err = net.Listen("tcp", bindAddr+":"+port)
@@ -40,7 +41,7 @@ func (l *GophorListener) Accept() (*GophorConn, error) {
 
     gophorConn := new(GophorConn)
     gophorConn.Conn = conn
-    gophorConn.Host = &ConnHost{ l.Host.Name, l.Host.Port }
+    gophorConn.Host = &ConnHost{ l.Host.Name, l.Host.Port, l.Host.RootDir }
     return gophorConn, nil
 }
 
