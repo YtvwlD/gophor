@@ -55,9 +55,13 @@ gophor [args]
        -user                Drop to supplied user's UID and GID permissions
                             before execution.
 
-       -system-log          Path to gophor system log file, else use stderr.
+       -system-log          Path to gophor system log file.
 
-       -access-log          Path to gophor access log file, else use stderr.
+       -access-log          Path to gophor access log file.
+
+       -log-output          Change log output type (disable|stderr|file)
+
+       -log-opts            Comma-separated list of lop opts (timestamp|ip)
 
        -cache-check         Change file-cache freshness check frequency.
 
