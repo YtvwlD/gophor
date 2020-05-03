@@ -38,16 +38,16 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 - Separate system and access logging with output and formatting options.
 
-*Please note: previously, chrooting to server directory and dropping
+Please note: previously, chrooting to server directory and dropping
 privileges was supported by using Go C bindings. Unexpected circumstances
-have not yet been witness... But as this is not officially supported due to
-unexpected behaviour witnessed with `.Set{U,G}id()`, and there is a near 10 year 
+have not yet been witnessed... But as this is not officially supported due to
+unexpected behaviour with `.Set{U,G}id()` under Linux, and there is a near 10 year 
 ongoing tracked issue (https://github.com/golang/go/issues/1435), I decided to
 drop this feature for now. As soon as this patch gets merged I'll add
 support: https://go-review.googlesource.com/c/go/+/210639
 
-As a result of removing this, request sanitization has been majorly improved
-and checks are in place to prevent running Gophor as root.
+In place of removing this, request sanitization has been majorly improved and
+checks are in place to prevent running Gophor as root.
 
 If you run into issues binding to a lower port number due to insufficient
 permissions then there are a few alternatives:
@@ -58,8 +58,7 @@ permissions then there are a few alternatives:
 - use Docker (or some other solution) and configure port forwarding on the
   host
 
-- start gopher in it's own namespace in a chroot*
-
+- start gopher in it's own namespace in a chroot
 
 # Usage
 
