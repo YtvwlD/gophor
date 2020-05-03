@@ -4,6 +4,12 @@ import (
     "os"
 )
 
+const (
+    /* Filename constants */
+    CapsTxtStr   = "caps.txt"
+    RobotsTxtStr = "robots.txt"
+)
+
 func cachePolicyFiles(description, admin, geoloc string) {
     /* See if caps txt exists, if not generate */
     _, err := os.Stat("/caps.txt")
@@ -19,7 +25,7 @@ func cachePolicyFiles(description, admin, geoloc string) {
         file.LoadContents()
 
         /* No need to worry about mutexes here, no other goroutines running yet */
-        Config.FileSystem.CacheMap.Put("/caps.txt", file)
+        Config.FileSystem.CacheMap.Put("/"+CapsTxtStr, file)
     }
 
     /* See if caps txt exists, if not generate */
@@ -36,7 +42,7 @@ func cachePolicyFiles(description, admin, geoloc string) {
         file.LoadContents()
 
         /* No need to worry about mutexes here, no other goroutines running yet */
-        Config.FileSystem.CacheMap.Put("/robots.txt", file)
+        Config.FileSystem.CacheMap.Put("/"+RobotsTxtStr, file)
     }
 }
 

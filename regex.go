@@ -5,6 +5,10 @@ import (
     "strings"
 )
 
+func compileCmdParseRegex() *regexp.Regexp {
+    return regexp.MustCompile(` `)
+}
+
 func compileUserRestrictedFilesRegex(restrictedFiles string) []*regexp.Regexp {
     /* Return slice */
     restrictedFilesRegex := make([]*regexp.Regexp, 0)

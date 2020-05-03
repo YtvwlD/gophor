@@ -3,6 +3,7 @@ package main
 import (
     "bytes"
     "bufio"
+    "os"
 )
 
 /* GeneratedFileContents:
@@ -146,6 +147,24 @@ func (s *GophermapDirListing) Render(request *FileSystemRequest) ([]byte, *Gopho
     return listDir(&FileSystemRequest{ s.Path, request.Host }, s.Hidden)
 }
 
+/* GophermapExecutable:
+ * An implementation of GophermapSection that holds onto a path,
+ * and a string slice of arguments for the supplied executable path.
+ */
+type GophermapExecutable struct {
+    Path   *RequestPath
+    Args   []string
+}
+
+func NewGophermapExecutable(path *RequestPath, args []string) *GophermapExecutable {
+    return &GophermapExecutable{ path, args }
+}
+
+func (s *GophermapExecutable) Render(request *FileSystemRequest) ([]byte, *GophorError) {
+    return executeFile(s.Path, s.Args)
+}
+
+
 func readGophermap(requestPath *RequestPath) ([]GophermapSection, *GophorError) {
     /* Create return slice */
     sections := make([]GophermapSection, 0)
@@ -187,40 +206,49 @@ func readGophermap(requestPath *RequestPath) ([]GophermapSection, *GophorError) 
                     hidden[line[1:]] = true
 
                 case TypeSubGophermap:
-                    /* Check if we've been supplied subgophermap or regular file */
-                    if requestPath.HasRelativeSuffix(GophermapFileStr) {
-                        /* Ensure we haven't been passed the current gophermap. Recursion bad! */
-                        if line[1:] == requestPath.RelativePath() {
-                            break
-                        }
-
-                        /* Treat as any other gopher map! */
-                        subPath := requestPath.NewPathAtRoot(line[1:])
-                        submapSections, gophorErr := readGophermap(subPath)
-                        if gophorErr != nil {
-                            /* Failed to read subgophermap, insert error line */
-                            sections = append(sections, NewGophermapText(buildInfoLine("Error reading subgophermap: "+line[1:])))
-                        } else {
-                            sections = append(sections, submapSections...)
-                        }
-                    } else {
-                        /* Treat as regular file, but we need to replace Unix line endings
-                         * with gophermap line endings
-                         */
-                        subPath := requestPath.NewPathAtRoot(line[1:])
-                        fileContents, gophorErr := readIntoGophermap(subPath.AbsolutePath())
-                        if gophorErr != nil {
-                            /* Failed to read file, insert error line */
-                            Config.SysLog.Info("", "Error: %s\n", gophorErr)
-                            sections = append(sections, NewGophermapText(buildInfoLine("Error reading subgophermap: "+line[1:])))
-                        } else {
-                            sections = append(sections, NewGophermapText(fileContents))
-                        }
+                    /* Create new request path and args array */
+                    subPath, args := parseLineFileSystemRequest(requestPath.Root, line[1:])
+                    if !subPath.HasAbsolutePrefix("/") {
+                        /* Special case here where command must be in path, return GophermapExecutable */
+                        sections = append(sections, NewGophermapExecutable(subPath, args))
+                    } else if subPath.RelativePath() == "" {
+                        /* path cleaning failed */
+                        break
+                    } else if subPath.RelativePath() == requestPath.RelativePath() {
+                        /* Same as current gophermap. Recursion bad! */
+                        break
                     }
 
-                case TypeExec:
-                    /* Try executing supplied line */
-                    sections = append(sections, NewGophermapText(buildInfoLine("Error: inline shell commands not yet supported")))
+                    /* Perform file stat */
+                    stat, err := os.Stat(subPath.AbsolutePath())
+                    if (err != nil) || (stat.Mode() & os.ModeDir != 0) {
+                        /* File read error or is directory */
+                        break
+                    }
+
+                    /* Check if we've been supplied subgophermap or regular file */
+                    if subPath.HasAbsoluteSuffix("/"+GophermapFileStr) {
+                        /* If executable, store as GophermapExecutable, else readGophermap() */
+                        if stat.Mode().Perm() & 0100 != 0 {
+                            sections = append(sections, NewGophermapExecutable(subPath, args))
+                        } else {
+                            /* Treat as any other gophermap! */
+                            submapSections, gophorErr := readGophermap(subPath)
+                            if gophorErr == nil {
+                                sections = append(sections, submapSections...)
+                            }
+                        }
+                    } else {
+                        /* If stored in cgi-bin store as GophermapExecutable, else read into GophermapText */
+                        if subPath.HasRelativePrefix(CgiBinDirStr) {
+                            sections = append(sections, NewGophermapExecutable(subPath, args))
+                        } else {
+                            fileContents, gophorErr := readIntoGophermap(subPath.AbsolutePath())
+                            if gophorErr == nil {
+                                sections = append(sections, NewGophermapText(fileContents))
+                            }
+                        }
+                    }
 
                 case TypeEnd:
                     /* Lastline, break out at end of loop. Interface method Contents()
@@ -239,7 +267,7 @@ func readGophermap(requestPath *RequestPath) ([]GophermapSection, *GophorError) 
                     /* Just append to sections slice as gophermap text */
                     sections = append(sections, NewGophermapText([]byte(line+DOSLineEnd)))
             }
-            
+
             return true
         },
     )
@@ -287,7 +315,7 @@ func readIntoGophermap(path string) ([]byte, *GophorError) {
                 fileContents = append(fileContents, buildInfoLine(line[:length])...)
                 line = line[length:]
             }
-            
+
             return true
         },
     )

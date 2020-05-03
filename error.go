@@ -16,7 +16,7 @@ const (
     FileReadErr         ErrorCode = iota
     FileTypeErr         ErrorCode = iota
     DirListErr          ErrorCode = iota
-    
+
     /* Sockets */
     SocketWriteErr      ErrorCode = iota
     SocketWriteCountErr ErrorCode = iota
@@ -24,8 +24,11 @@ const (
     /* Parsing */
     InvalidRequestErr   ErrorCode = iota
     EmptyItemTypeErr    ErrorCode = iota
-    EntityPortParseErr  ErrorCode = iota
     InvalidGophermapErr ErrorCode = iota
+
+    /* Executing */
+    BufferReadErr       ErrorCode = iota
+    CommandStartErr     ErrorCode = iota
 
     /* Error Response Codes */
     ErrorResponse200 ErrorResponseCode = iota
@@ -75,10 +78,13 @@ func (e *GophorError) Error() string {
             str = "invalid request data"
         case EmptyItemTypeErr:
             str = "line string provides no dir entity type"
-        case EntityPortParseErr:
-            str = "parsing dir entity port"
         case InvalidGophermapErr:
             str = "invalid gophermap"
+
+        case BufferReadErr:
+            str = "buffer read fail"
+        case CommandStartErr:
+            str = "command start fail"
 
         default:
             str = "Unknown"
@@ -120,9 +126,12 @@ func gophorErrorToResponseCode(code ErrorCode) ErrorResponseCode {
             return ErrorResponse400
         case EmptyItemTypeErr:
             return ErrorResponse500
-        case EntityPortParseErr:
-            return ErrorResponse500
         case InvalidGophermapErr:
+            return ErrorResponse500
+
+        case BufferReadErr:
+            return ErrorResponse500
+        case CommandStartErr:
             return ErrorResponse500
 
         default:

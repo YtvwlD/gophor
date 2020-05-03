@@ -11,17 +11,21 @@ import (
  * and file cache)
  */
 type ServerConfig struct {
-    /* Base settings */
+    /* Executable Settings */
+    Env                  []string
 
     /* Content settings */
-    FooterText      []byte
-    PageWidth       int
-    RestrictedFiles []*regexp.Regexp
+    FooterText           []byte
+    PageWidth            int
+
+    /* Regex */
+    CmdParseLineRegex    *regexp.Regexp
+    RestrictedFiles      []*regexp.Regexp
 
     /* Logging */
-    SysLog          LoggerInterface
-    AccLog          LoggerInterface
+    SysLog               LoggerInterface
+    AccLog               LoggerInterface
 
     /* Filesystem access */
-    FileSystem      *FileSystem
+    FileSystem           *FileSystem
 }

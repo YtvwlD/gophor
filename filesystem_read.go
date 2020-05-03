@@ -8,6 +8,10 @@ import (
     "bufio"
 )
 
+const (
+    FileReadBufSize = 1024
+)
+
 /* Perform simple buffered read on a file at path */
 func bufferedRead(path string) ([]byte, *GophorError) {
     /* Open file */
@@ -106,69 +110,8 @@ func unixLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, er
     return 0, nil, nil
 }
 
-/* listDir():
- * Here we use an empty function pointer, and set the correct
- * function to be used during the restricted files regex parsing.
- * This negates need to check if RestrictedFilesRegex is nil every
- * single call.
- */
-var listDir func(request *FileSystemRequest, hidden map[string]bool) ([]byte, *GophorError)
-
-func _listDir(request *FileSystemRequest, hidden map[string]bool) ([]byte, *GophorError) {
-    return _listDirBase(request, func(dirContents *[]byte, file os.FileInfo) {
-        /* If requested hidden */
-        if _, ok := hidden[file.Name()]; ok {
-            return
-        }
-
-        /* Handle file, directory or ignore others */
-        switch {
-            case file.Mode() & os.ModeDir != 0:
-                /* Directory -- create directory listing */
-                itemPath := request.Path.JoinSelectorPath(file.Name())
-                *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
-
-            case file.Mode() & os.ModeType == 0:
-                /* Regular file -- find item type and creating listing */
-                itemPath := request.Path.JoinSelectorPath(file.Name())
-                itemType := getItemType(itemPath)
-                *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
-
-            default:
-                /* Ignore */
-        }
-    })
-}
-
-func _listDirRegexMatch(request *FileSystemRequest, hidden map[string]bool) ([]byte, *GophorError) {
-    return _listDirBase(request, func(dirContents *[]byte, file os.FileInfo) {
-        /* If regex match in restricted files || requested hidden */
-        if isRestrictedFile(file.Name()) {
-            return
-        } else if _, ok := hidden[file.Name()]; ok {
-            return
-        }
-
-        /* Handle file, directory or ignore others */
-        switch {
-            case file.Mode() & os.ModeDir != 0:
-                /* Directory -- create directory listing */
-                itemPath := request.Path.JoinSelectorPath(file.Name())
-                *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
-
-            case file.Mode() & os.ModeType == 0:
-                /* Regular file -- find item type and creating listing */
-                itemPath := request.Path.JoinSelectorPath(file.Name())
-                itemType := getItemType(itemPath)
-                *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
-
-            default:
-                /* Ignore */
-        }
-    })
-}
-
-func _listDirBase(request *FileSystemRequest, iterFunc func(dirContents *[]byte, file os.FileInfo)) ([]byte, *GophorError) {
+/* List the files in a directory, hiding those requested */
+func listDir(request *FileSystemRequest, hidden map[string]bool) ([]byte, *GophorError) {
     /* Open directory file descriptor */
     fd, err := os.Open(request.Path.AbsolutePath())
     if err != nil {
@@ -197,7 +140,31 @@ func _listDirBase(request *FileSystemRequest, iterFunc func(dirContents *[]byte,
     dirContents = append(dirContents, buildLine(TypeDirectory, "..", request.Path.JoinRelativePath(".."), request.Host.Name, request.Host.Port)...)
 
     /* Walk through files :D */
-    for _, file := range files { iterFunc(&dirContents, file) }
+    for _, file := range files {
+        /* If regex match in restricted files || requested hidden */
+        if isRestrictedFile(file.Name()) {
+            continue
+        } else if _, ok := hidden[file.Name()]; ok {
+            continue
+        }
+
+        /* Handle file, directory or ignore others */
+        switch {
+            case file.Mode() & os.ModeDir != 0:
+                /* Directory -- create directory listing */
+                itemPath := request.Path.JoinSelectorPath(file.Name())
+                dirContents = append(dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
+
+            case file.Mode() & os.ModeType == 0:
+                /* Regular file -- find item type and creating listing */
+                itemPath := request.Path.JoinSelectorPath(file.Name())
+                itemType := getItemType(itemPath)
+                dirContents = append(dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
+
+            default:
+                /* Ignore */
+        }
+    }
 
     return dirContents, nil
 }

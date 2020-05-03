@@ -4,6 +4,12 @@ import (
     "strings"
 )
 
+const (
+    /* Socket settings */
+    SocketReadBufSize = 256 /* Supplied selector should be <= this len */
+    MaxSocketReadChunks = 1
+)
+
 type Worker struct {
     Conn *GophorConn
 }
@@ -58,27 +64,15 @@ func (worker *Worker) Serve() {
 
     /* Handle any error */
     if gophorErr != nil {
-        Config.SysLog.Error("", "%s\n", gophorErr.Error())
-
         /* Generate response bytes from error code */
         response := generateGopherErrorResponseFromCode(gophorErr.Code)
 
         /* If we got response bytes to send? SEND 'EM! */
         if response != nil {
             /* No gods. No masters. We don't care about error checking here */
-            worker.SendRaw(response)
+            worker.Send(response)
         }
     }
-}
-
-func (worker *Worker) SendRaw(b []byte) *GophorError {
-    count, err := worker.Conn.Write(b)
-    if err != nil {
-        return &GophorError{ SocketWriteErr, err }
-    } else if count != len(b) {
-        return &GophorError{ SocketWriteCountErr, nil }
-    }
-    return nil
 }
 
 func (worker *Worker) Log(format string, args ...interface{}) {
@@ -87,6 +81,16 @@ func (worker *Worker) Log(format string, args ...interface{}) {
 
 func (worker *Worker) LogError(format string, args ...interface{}) {
     Config.AccLog.Error("("+worker.Conn.RemoteAddr().String()+") ", format, args...)
+}
+
+func (worker *Worker) Send(b []byte) *GophorError {
+    count, err := worker.Conn.Write(b)
+    if err != nil {
+        return &GophorError{ SocketWriteErr, err }
+    } else if count != len(b) {
+        return &GophorError{ SocketWriteCountErr, nil }
+    }
+    return nil
 }
 
 func (worker *Worker) RespondGopher(data []byte) *GophorError {
@@ -99,25 +103,30 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     switch len(dataStr) {
         case lenBefore-4:
             /* Send an HTML redirect to supplied URL */
-            worker.Log("Redirecting to %s\n", dataStr)
-            return worker.SendRaw(generateHtmlRedirect(dataStr))
+            worker.LogError("Redirecting to %s\n", dataStr)
+            return worker.Send(generateHtmlRedirect(dataStr))
         default:
             /* Do nothing */
     }
 
-    /* Get request path from data string */
-    requestPath := NewSanitizedRequestPath(worker.Conn.Host.RootDir, dataStr)
-
-    /* Append lastline */
-    response, gophorErr := Config.FileSystem.HandleRequest(requestPath, worker.Conn.Host)
+    /* Parse filesystem request and arg string slice */
+    requestPath, args, gophorErr := parseFileSystemRequest(worker.Conn.Host.RootDir, dataStr)
     if gophorErr != nil {
+        return gophorErr
+    }
+
+    /* Handle filesystem request */
+    response, gophorErr := Config.FileSystem.HandleRequest(worker.Conn.Host, requestPath, args)
+    if gophorErr != nil {
+        /* Log to system and access logs, then return error */
+        Config.SysLog.Error("", "Error serving %s: %s\n", dataStr, gophorErr.Error())
         worker.LogError("Failed to serve: %s\n", requestPath.AbsolutePath())
         return gophorErr
     }
     worker.Log("Served: %s\n", requestPath.AbsolutePath())
 
     /* Serve response */
-    return worker.SendRaw(response)
+    return worker.Send(response)
 }
 
 func readUpToFirstTabOrCrlf(data []byte) string {

@@ -8,10 +8,12 @@ import (
 
 type FileType int
 const (
-    /* Leads to some more concise code below */
-    FileTypeRegular FileType = iota
-    FileTypeDir     FileType = iota
-    FileTypeBad     FileType = iota
+    /* Help converting file size stat to supplied size in megabytes */
+    BytesInMegaByte = 1048576.0
+
+    /* Filename constants */
+    CgiBinDirStr     = "cgi-bin"
+    GophermapFileStr = "gophermap"
 )
 
 /* FileSystem:
@@ -32,7 +34,7 @@ func (fs *FileSystem) Init(size int, fileSizeMax float64) {
     fs.CacheFileMax = int64(BytesInMegaByte * fileSizeMax)
 }
 
-func (fs *FileSystem) HandleRequest(requestPath *RequestPath, host *ConnHost) ([]byte, *GophorError) {
+func (fs *FileSystem) HandleRequest(host *ConnHost, requestPath *RequestPath, args []string) ([]byte, *GophorError) {
     /* Get absolute path */
     absPath := requestPath.AbsolutePath()
 
@@ -56,32 +58,28 @@ func (fs *FileSystem) HandleRequest(requestPath *RequestPath, host *ConnHost) ([
         return b, nil
     }
 
-    /* Using stat, set file type for later handling */
-    var fileType FileType
-    switch {
-        case stat.Mode() & os.ModeDir != 0:
-            fileType = FileTypeDir
-
-        case stat.Mode() & os.ModeType == 0:
-            fileType = FileTypeRegular
-
-        default:
-            fileType = FileTypeBad
-    }
-
     /* Handle file type */
-    switch fileType {
+    switch {
         /* Directory */
-        case FileTypeDir:
+        case stat.Mode() & os.ModeDir != 0:
+            /* Ignore cgi-bin directory */
+            if requestPath.HasRelativePrefix(CgiBinDirStr) {
+                return nil, &GophorError{ IllegalPathErr, nil }
+            }
+
             /* Check Gophermap exists */
             gophermapPath := requestPath.NewJoinPathFromCurrent(GophermapFileStr)
-            _, err := os.Stat(gophermapPath.AbsolutePath())
+            stat, err = os.Stat(gophermapPath.AbsolutePath())
 
             var output []byte
             var gophorErr *GophorError
             if err == nil {
-                /* Gophermap exists, update requestPath and serve this! */
-                output, gophorErr = fs.FetchFile(&FileSystemRequest{ gophermapPath, host })
+                /* Gophermap exists! If executable execute, else serve. */
+                if stat.Mode().Perm() & 0100 != 0 {
+                    output, gophorErr = executeFile(gophermapPath, args)
+                } else {
+                    output, gophorErr = fs.FetchFile(&FileSystemRequest{ gophermapPath, host })
+                }
             } else {
                 /* No gophermap, serve directory listing */
                 output, gophorErr = listDir(&FileSystemRequest{ requestPath, host }, map[string]bool{})
@@ -97,8 +95,13 @@ func (fs *FileSystem) HandleRequest(requestPath *RequestPath, host *ConnHost) ([
             return output, nil
 
         /* Regular file */
-        case FileTypeRegular:
-            return fs.FetchFile(&FileSystemRequest{ requestPath, host })
+        case stat.Mode() & os.ModeType == 0:
+            /* If cgi-bin, return executed contents. Else, fetch */
+            if requestPath.HasRelativePrefix(CgiBinDirStr) {
+                return executeFile(requestPath, args)
+            } else {
+                return fs.FetchFile(&FileSystemRequest{ requestPath, host })
+            }
 
         /* Unsupported type */
         default:
@@ -145,7 +148,7 @@ func (fs *FileSystem) FetchFile(request *FileSystemRequest) ([]byte, *GophorErro
             return nil, &GophorError{ FileStatErr, err }
         }
 
-        /* Create new file contents object using supplied function */
+        /* Create new file contents */
         var contents FileContents
         if request.Path.HasAbsoluteSuffix("/"+GophermapFileStr) {
             contents = &GophermapContents{ request.Path, nil }

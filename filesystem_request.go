@@ -74,23 +74,35 @@ func (rp *RequestPath) JoinAbsolutePath(extPath string) string {
 }
 
 func (rp *RequestPath) JoinRelativePath(extPath string) string {
-    return path.Join(rp.Path, extPath)
+    return path.Join(rp.RelativePath(), extPath)
+}
+
+func (rp *RequestPath) HasAbsolutePrefix(prefix string) bool {
+    return strings.HasPrefix(rp.AbsolutePath(), prefix)
+}
+
+func (rp *RequestPath) HasRelativePrefix(prefix string) bool {
+    return strings.HasPrefix(rp.RelativePath(), prefix)
+}
+
+func (rp *RequestPath) HasRelativeSuffix(suffix string) bool {
+    return strings.HasSuffix(rp.RelativePath(), suffix)
 }
 
 func (rp *RequestPath) HasAbsoluteSuffix(suffix string) bool {
     return strings.HasSuffix(rp.AbsolutePath(), suffix)
 }
 
-func (rp *RequestPath) HasRelativeSuffix(suffix string) bool {
-    return strings.HasSuffix(rp.Path, suffix)
-}
-
 func (rp *RequestPath) TrimRelativeSuffix(suffix string) string {
-    return strings.TrimSuffix(rp.Path, suffix)
+    return strings.TrimSuffix(rp.RelativePath(), suffix)
 }
 
 func (rp *RequestPath) TrimAbsoluteSuffix(suffix string) string {
     return strings.TrimSuffix(rp.AbsolutePath(), suffix)
+}
+
+func (rp *RequestPath) JoinPathFromRoot(extPath string) string {
+    return path.Join(rp.Root, extPath)
 }
 
 func (rp *RequestPath) NewJoinPathFromCurrent(extPath string) *RequestPath {

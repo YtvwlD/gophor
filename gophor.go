@@ -2,7 +2,6 @@ package main
 
 import (
     "os"
-    "os/user"
     "strconv"
     "syscall"
     "os/signal"
@@ -10,23 +9,9 @@ import (
     "time"
 )
 
-/*
- * GoLang's built-in syscall.{Setuid,Setgid}() methods don't work as expected (all I ever
- * run into is 'operation not supported'). Which from reading seems to be a result of Linux
- * not always performing setuid/setgid constistent with the Unix expected result. Then mix
- * that with GoLang's goroutines acting like threads but not quite the same... I can see
- * why they're not fully supported.
- *
- * Instead we're going to take C-bindings and call them directly ourselves, BEFORE spawning
- * any goroutines to prevent fuckery.
- *
- * Oh god here we go...
- */
- 
-/*
-#include <unistd.h>
-*/
-import "C"
+const (
+    GophorVersion = "0.6-beta-PR3"
+)
 
 var (
     Config *ServerConfig
@@ -74,8 +59,7 @@ func setupServer() []*GophorListener {
     serverHostname    := flag.String("hostname", "127.0.0.1", "Change server hostname (FQDN).")
     serverPort        := flag.Int("port", 70, "Change server port (0 to disable unencrypted traffic).")
     serverBindAddr    := flag.String("bind-addr", "127.0.0.1", "Change server socket bind address")
-    execAs            := flag.String("user", "", "Drop to supplied user's UID and GID permissions before execution.")
-    rootless          := flag.Bool("rootless", false, "Run without root privileges (no chroot, no privilege drop, no restricted ports).")
+    serverEnv         := flag.String("env", "", "New-line separated list of environment variables to be used when executing moles.")
 
     /* User supplied caps.txt information */
     serverDescription := flag.String("description", "Gophor: a Gopher server in GoLang", "Change server description in generated caps.txt.")
@@ -121,50 +105,21 @@ func setupServer() []*GophorListener {
     Config.SysLog, Config.AccLog = setupLoggers(*logOutput, *logOpts, *systemLogPath, *accessLogPath)
 
     /* If running as root, get ready to drop privileges */
-    var uid, gid int
-    if !*rootless {
-        /* Getting UID+GID for supplied user, has to be done BEFORE chroot */
-        if *execAs == "" {
-            /* No user supplied :( */
-            Config.SysLog.Fatal("", "Gophor requires a supplied user name to drop privileges to.\n")
-        } else if *execAs == "root" {
-            /* Naughty, naughty! */
-            Config.SysLog.Fatal("", "Gophor does not support directly running as root, please supply a non-root user account\n")
-        } else {
-            /* Try lookup specified username */
-            user, err := user.Lookup(*execAs)
-            if err != nil {
-                Config.SysLog.Fatal("", "Error getting information for requested user %s: %s\n", *execAs, err)
-            }
-
-            /* These values should be coming straight out of /etc/passwd, so assume safe */
-            uid, _ = strconv.Atoi(user.Uid)
-            gid, _ = strconv.Atoi(user.Gid)
-
-            /* Double check this isn't a privileged account */
-            if uid == 0 || gid == 0 {
-                Config.SysLog.Info("", "Gophor does not support running with any kind of privileges, please supply a non-root user account\n")
-            }
-        }
-    } else {
-        if syscall.Getuid() == 0 || syscall.Getgid() == 0 {
-            Config.SysLog.Info("", "Gophor (obviously) does not support running rootless, as root -.-\n")
-        } else if *execAs != "" {
-            Config.SysLog.Info("", "Gophor does not support dropping privileges when running rootless\n")
-        }
+    if syscall.Getuid() == 0 || syscall.Getgid() == 0 {
+        Config.SysLog.Fatal("", "Gophor does not support running as root!\n")
     }
 
     /* Enter server dir */
     enterServerDir(*serverRoot)
     Config.SysLog.Info("", "Entered server directory: %s\n", *serverRoot)
 
-    /* Try enter chroot if requested */
-    if *rootless {
-        Config.SysLog.Info("", "Running rootless, server root set: %s\n", *serverRoot)
+    /* Setup server shell environment */
+    if *serverEnv != "" {
+        Config.Env = parseEnvironmentString(*serverEnv)
+        Config.SysLog.Info("", "Using user supplied shell environment\n")
     } else {
-        chrootServerDir(*serverRoot)
-        *serverRoot = "/"
-        Config.SysLog.Info("", "Chroot success, new root: %s\n", *serverRoot)
+        Config.Env = os.Environ()
+        Config.SysLog.Info("", "Using call process shell environment\n")
     }
 
     /* Setup listeners */
@@ -181,25 +136,12 @@ func setupServer() []*GophorListener {
         Config.SysLog.Fatal("", "No valid port to listen on\n")
     }
 
-    /* Drop not rootless, privileges to retrieved UID+GID */
-    if !*rootless {
-        setPrivileges(uid, gid)
-        Config.SysLog.Info("", "Successfully dropped privileges to UID:%d GID:%d\n", uid, gid)
-    } else {
-        Config.SysLog.Info("", "Running as current user\n")
-    }
+    /* Compile CmdParse regular expression */
+    Config.CmdParseLineRegex = compileCmdParseRegex()
 
-    /* Compile user restricted files regex if supplied */
-    if *restrictedFiles != "" {
-        Config.RestrictedFiles = compileUserRestrictedFilesRegex(*restrictedFiles)
-        Config.SysLog.Info("", "Restricted files regular expressions compiled\n")
-
-        /* Setup the listDir function to use regex matching */
-        listDir = _listDirRegexMatch
-    } else {
-        /* Setup the listDir function to skip regex matching */
-        listDir = _listDir
-    }
+    /* Compile user restricted files regex */
+    Config.RestrictedFiles = compileUserRestrictedFilesRegex(*restrictedFiles)
+    Config.SysLog.Info("", "Compiled restricted files regular expressions\n")
 
     /* Setup file cache */
     Config.FileSystem = new(FileSystem)
@@ -240,32 +182,5 @@ func enterServerDir(path string) {
     err := syscall.Chdir(path)
     if err != nil {
         Config.SysLog.Fatal("", "Error changing dir to server root %s: %s\n", path, err.Error())
-    }
-}
-
-func chrootServerDir(path string) {
-    err := syscall.Chroot(path)
-    if err != nil {
-        Config.SysLog.Fatal("", "Error chroot'ing into server root %s: %s\n", path, err.Error())
-    }
-
-    /* Change to server root just to ensure we're sitting at root of chroot */
-    err = syscall.Chdir("/")
-    if err != nil {
-        Config.SysLog.Fatal("", "Error changing to root of chroot dir: %s\n", err.Error())
-    }
-}
-
-func setPrivileges(execUid, execGid int) {
-    /* C-bind setgid */
-    result := C.setgid(C.uint(execGid))
-    if result != 0 {
-        Config.SysLog.Fatal("", "Failed setting GID %d: %d\n", execGid, result)
-    }
-
-    /* C-bind setuid */
-    result = C.setuid(C.uint(execUid))
-    if result != 0 {
-        Config.SysLog.Fatal("", "Failed setting UID %d: %d\n", execUid, result)
     }
 }
