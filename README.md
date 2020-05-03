@@ -21,7 +21,7 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 - LRU file caching with user-controlled cache size, max cached file size
   and cache refresh frequency.
 
-- CGI-bin support with CGI 1.1 compliance.
+- Initial CGI-bin support (aiming for CGI 1.1 compliance).
 
 - HTTP style URL query and encoding support.
 
