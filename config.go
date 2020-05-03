@@ -12,7 +12,7 @@ import (
  */
 type ServerConfig struct {
     /* Executable Settings */
-    Env                  []string
+    CgiEnv               []string
 
     /* Content settings */
     FooterText           []byte

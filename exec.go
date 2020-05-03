@@ -4,13 +4,31 @@ import (
     "os/exec"
     "syscall"
     "bytes"
+    "runtime"
     "io"
 )
 
 const (
-    /* Reader buf size */
+    SafeExecPath = ""
+
     ReaderBufSize = 1024
 )
+
+func setupInitialCgiEnviron(description string) []string {
+    return []string{
+        /* RFC 3875 standard */
+        envKeyValue("PATH",               SafeExecPath),
+        envKeyValue("GATEWAY_INTERFACE",  ""),
+        envKeyValue("SERVER_SOFTWARE",    "gophor "+GophorVersion),
+        envKeyValue("SERVER_ARCH",        runtime.GOARCH),
+        envKeyValue("SERVER_DESCRIPTION", description),
+        envKeyValue("SERVER_VERSION",     GophorVersion),
+        envKeyValue("SERVER_PROTOCOL",    "RFC1436"),
+        envKeyValue("COLUMNS",            Config.PageWidth),
+        envKeyValue("GOPHER_CHARSET",     Config.CharSet),
+        envKeyValue("SERVER_CODENAME",    ""),
+    }
+}
 
 func executeFile(requestPath *RequestPath, args []string) ([]byte, *GophorError) {
     /* Create stdout, stderr buffers */
@@ -25,8 +43,33 @@ func executeFile(requestPath *RequestPath, args []string) ([]byte, *GophorError)
         cmd = exec.Command(requestPath.AbsolutePath())
     }
 
-    /* Setup operating environment */
-    cmd.Env = Config.Env /* User defined cgi-bin environment */
+    /* Setup remaining CGI spec environment values */
+    cmd.Env = Config.CgiEnv
+
+    /* RFC 1436 standard */
+    cmd.Env = append(cmd.Env, envKeyValue("CONTENT_LENGTH",  ""),
+    cmd.Env = append(cmd.Env, envKeyValue("SERVER_NAME",     ""))
+    cmd.Env = append(cmd.Env, envKeyValue("SERVER_PORT",     ""))
+    cmd.Env = append(cmd.Env, envKeyValue("REQUEST_METHOD",  ""))
+    cmd.Env = append(cmd.Env, envKeyValue("DOCUMENT_ROOT",   ""))
+    cmd.Env = append(cmd.Env, envKeyValue("SCRIPT_NAME",     ""))
+    cmd.Env = append(cmd.Env, envKeyValue("SCRIPT_FILENAME", ""))
+    cmd.Env = append(cmd.Env, envKeyValue("LOCAL_ADDR",      ""))
+    cmd.Env = append(cmd.Env, envKeyValue("REMOTE_ADDR",     ""))
+    cmd.Env = append(cmd.Env, envKeyValue("SESSION_ID",      ""))
+    cmd.Env = append(cmd.Env, envKeyValue("GOPHER_FILETYPE", ""))
+    cmd.Env = append(cmd.Env, envKeyValue("GOPHER_REFERER",  ""))
+    cmd.Env = append(cmd.Env, envKeyValue("SERVER_HOST",     ""))
+    cmd.Env = append(cmd.Env, envKeyValue("REQUEST",         ""))
+    cmd.Env = append(cmd.Env, envKeyValue("SEARCHREQUEST",   ""))
+    cmd.Env = append(cmd.Env, envKeyValue("QUERY_STRING",    ""))
+//    environ = append(environ, envKeyValue("TLS", "")
+//    environ = append(environ, envKeyValue("SERVER_TLS_PORT", ""),
+//    environ = append(environ, envKeyValue("HTTP_ACCEPT_CHARSET", "")
+//    environ = append(environ, envKeyValue("HTTP_REFERER", "")
+
+    /* Non-standard */
+    environ = append(environ, envKeyValue("SELECTOR", ""))
 
     /* Set buffers*/
     cmd.Stdout = outBuffer
@@ -101,4 +144,9 @@ func readBuffer(reader *bytes.Buffer) ([]byte, *GophorError) {
     }
 
     return contents, nil
+}
+
+
+func envKeyValue(key, value string) string {
+    return key+"="+value
 }

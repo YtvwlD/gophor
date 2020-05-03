@@ -59,7 +59,6 @@ func setupServer() []*GophorListener {
     serverHostname    := flag.String("hostname", "127.0.0.1", "Change server hostname (FQDN).")
     serverPort        := flag.Int("port", 70, "Change server port (0 to disable unencrypted traffic).")
     serverBindAddr    := flag.String("bind-addr", "127.0.0.1", "Change server socket bind address")
-    serverEnv         := flag.String("env", "", "New-line separated list of environment variables to be used when executing moles.")
 
     /* User supplied caps.txt information */
     serverDescription := flag.String("description", "Gophor: a Gopher server in GoLang", "Change server description in generated caps.txt.")
@@ -113,14 +112,9 @@ func setupServer() []*GophorListener {
     enterServerDir(*serverRoot)
     Config.SysLog.Info("", "Entered server directory: %s\n", *serverRoot)
 
-    /* Setup server shell environment */
-    if *serverEnv != "" {
-        Config.Env = parseEnvironmentString(*serverEnv)
-        Config.SysLog.Info("", "Using user supplied shell environment\n")
-    } else {
-        Config.Env = os.Environ()
-        Config.SysLog.Info("", "Using call process shell environment\n")
-    }
+    /* Setup initial server shell environment with the info we have to hand */
+    Config.CgiEnv = setupInitialCgiEnviron()
+    Config.SysLog.Info("", "Using user supplied shell environment\n")
 
     /* Setup listeners */
     listeners := make([]*GophorListener, 0)
