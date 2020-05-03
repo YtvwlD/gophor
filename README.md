@@ -14,80 +14,87 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 # Features
 
-- Built with concurrency and efficiency in mind.
+- Built with security, concurrency and efficiency in mind.
 
 - ZERO external dependencies.
 
-- Security focused -- by default chroots to server directory and drops
-  privileges, though `-rootless` flag may be applied to skip these steps
-  (e.g. when running on a shared host).
-
-- LRU file caching -- with user-controlled cache size, max cached file size
+- LRU file caching with user-controlled cache size, max cached file size
   and cache refresh frequency.
 
-- Insert files within gophermaps, including automating reflowing of lines
-  longer than (user definable) page width.
+- CGI-bin support with CGI 1.1 compliance.
 
-- Automatic replacement of `$hostname` or `$port` with the information of
-  the host the client is connecting to.
+- Executable gophermap support.
+
+- Insert files with automated line reflowing, and inline shell script
+  output within gophermaps.
+
+- Support for all commonly accepted item type characters (beyond just
+  RFC1436 support).
+
+- Automatic replacement of `$hostname` or `$port` in gophermap lines with
+  current host information.
 
 - User supplied footer text appended to gophermaps and directory listings.
 
-- Item type characters beyond RFC 1436 standard (see below).
+- Separate system and access logging with output and formatting options.
 
-- Separate system and access logging with various output options (change
-  output location, change flags to include timestamps or include IPs with
-  access logs).
+*Please note: previously, chrooting to server directory and dropping
+privileges was supported by using Go C bindings. Unexpected circumstances
+have not yet been witness... But as this is not officially supported due to
+unexpected behaviour witnessed with `.Set{U,G}id()`, and there is a near 10 year 
+ongoing tracked issue (https://github.com/golang/go/issues/1435), I decided to
+drop this feature for now. As soon as this patch gets merged I'll add
+support: https://go-review.googlesource.com/c/go/+/210639
+
+As a result of removing this, request sanitization has been majorly improved
+and checks are in place to prevent running Gophor as root.
+
+If you run into issues binding to a lower port number due to insufficient
+permissions then there are a few alternatives:
+
+- set process capabilities using utility like capsh:
+  https://linux.die.net/man/1/capsh
+
+- use Docker (or some other solution) and configure port forwarding on the
+  host
+
+- start gopher in it's own namespace in a chroot*
+
 
 # Usage
 
 ```
 gophor [args]
        -root-dir            Change server root directory.
-
-       -port                Change server NON-TLS listening port.
-
+       -port                Change server listening port.
        -hostname            Change server hostname (FQDN, used to craft dir
                             lists).
-
        -bind-addr           Change server bind-address (used in creating
                             socket).
-
-       -user                Drop to supplied user's UID and GID permissions
-                            before execution.
+       -env                 New-line separated list of environment variables
+                            to use when executing cgi-bin, gophermaps, shell
+                            commands.
 
        -system-log          Path to gophor system log file.
-
        -access-log          Path to gophor access log file.
-
        -log-output          Change log output type (disable|stderr|file)
-
        -log-opts            Comma-separated list of lop opts (timestamp|ip)
 
        -cache-check         Change file-cache freshness check frequency.
-
        -cache-size          Change max no. files in file-cache.
-
        -cache-file-max      Change maximum allowed size of a cached file.
+       -disable-cache       Disable file caching.
 
        -page-width          Change page width used when formatting output.
-
        -footer              Change gophermap footer text (Unix new-line
                             separated lines).
-
        -no-footer-separator Disable footer text line separator.
-
        -restrict-files      New-line separated list of regex statements
                             restricting files from showing in directory listing.
 
        -description         Change server description in generated caps.txt.
-
        -admin-email         Change admin email in generated caps.txt.
-
        -geoloc              Change geolocation in generated caps.txt.
-
-       -rootless            Run without root privileges (no chroot, no privilege
-                            drop, no restricted ports).
 
        -version             Print version string.
 ```
@@ -143,12 +150,8 @@ Type | Treat as | Meaning
  .   |     -    | [SERVER ONLY] Last line -- stop processing gophermap default
  *   |     -    | [SERVER ONLY] Last line + directory listing -- stop processing
      |          |               gophermap and end on a directory listing
- =   |     -    | [SERVER ONLY] Include subgophermap / regular file here. Prints
-     |          |               and formats file / gophermap in-place
-
-Planned to be supported:
-Type | Treat as | Meaning
- $   |     -    | [SERVER ONLY] Execute shell command and print stdout here
+ =   |     -    | [SERVER ONLY] Include or execute subgophermap, cgi-bin, regular
+     |          |               file or shell command stdout here
 ```
 
 # Compliance
@@ -219,49 +222,19 @@ Null port: `0`
 
 Shortterm:
 
-- Set default charset -- need to think about implementation here...
-
-- Neaten codebase after recent RequestPath addition.
+- Character encoding support
 
 - Fix file cache only updating if main gophermap changes (but not sub files)
-  -- need to either rethink how we keep track of files, or rethink how
-  gophermaps are stored in memory.
 
 Longterm:
 
-- Finish inline shell scripting support -- current thinking is to only allow
-  during rootless operation.
+- Rotating logs
 
-- Rotating logs -- have a check on start for a file-size, rotate out if the
-  file is too large. Possibly checks during run-time too?
+- Add last-mod-time to directory listings
 
-- Add last-mod-time to directory listings -- have global time parser
-  object, maybe separate out separate global instances of objects (e.g.
-  worker related, cache related, config related?)
+- TLS support
 
-- TLS support -- ~~requires a rethink of how we're passing port functions
-  generating gopher directory entries, also there is no definitive standard
-  for this yet~~ implemented these changes! figuring out gopher + TLS itself
-  though? no luck yet.
-
-- Connection throttling + timeouts -- thread to keep track of list of
-  recently connected IPs. Keep incremementing connection count and only
-  remove from list when `lastIncremented` time is greater than timeout
-
-- More closely follow GoLang built-in net/http code style for worker -- just
-  a neatness thing, maybe bring some performance improvements too and a
-  generally different way of approaching some of the solutions to problems we
-  have
-
-# Please note
-
-During the initial writing phase the quality of git commit messages may be
-low and many changes are likely to be bundled together at a time, just
-because the pace of development right now is rather break-neck.
-
-As soon as we reach a stable point in development, or if other people start
-contributing issues or PRs, whichever comes first, this will be changed
-right away.
+- Connection throttling + timeouts
 
 # Resources used
 
