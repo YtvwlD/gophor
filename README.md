@@ -23,6 +23,8 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 - CGI-bin support with CGI 1.1 compliance.
 
+- HTTP style URL query and encoding support.
+
 - Executable gophermap support.
 
 - Insert files with automated line reflowing, and inline shell script
