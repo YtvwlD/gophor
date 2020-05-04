@@ -2,9 +2,20 @@ package main
 
 import (
     "strings"
-    "path"
-    "net/url"
 )
+
+/* Parse a request string into a path and parameters string */
+func parseRequestString(request string) (string, []string) {
+    /* Read up to first '?' and then put rest into single slice string array */
+    i := 0
+    for i < len(request) {
+        if request[i] == '?' {
+            break
+        }
+        i += 1
+    }
+    return request[:i], []string{ request[i:] }
+}
 
 /* Parse line type from contents */
 func parseLineType(line string) ItemType {
@@ -41,8 +52,6 @@ func parseLineType(line string) ItemType {
                 return TypeHiddenFile
             case TypeSubGophermap:
                 return TypeSubGophermap
-            case TypeExec:
-                return TypeExec
             default:
                 return TypeInfoNotStated
         }
@@ -52,80 +61,30 @@ func parseLineType(line string) ItemType {
 }
 
 /* Parses a line in a gophermap into a filesystem request path and a string slice of arguments */
-func parseLineFileSystemRequest(rootDir, requestStr string) (*RequestPath, []string) {
-    if path.IsAbs(requestStr) {
-        /* This is an absolute path, assume it must be within gopher directory */
-        args := splitLineStringArgs(requestStr)
-        requestPath := NewSanitizedRequestPath(rootDir, args[0])
-
+func parseLineRequestString(request *FileSystemRequest, lineStr string) (*FileSystemRequest) {
+    if strings.HasPrefix(lineStr, "/") {
+        /* We are dealing with a file input of some kind. Figure out if CGI-bin */
+        if strings.HasPrefix(lineStr[1:], CgiBinDirStr) {
+            /* CGI-bind script, parse requestPath and parameters as standard URL encoding */
+            requestPath, parameters := parseRequestString(lineStr)
+            return NewFileSystemRequest(nil, nil, request.RootDir, requestPath, parameters)        
+        } else {
+            /* Regular file, no more parsing needing */
+            return NewFileSystemRequest(nil, nil, request.RootDir, lineStr[1:], request.Parameters)
+        }
+    } else {
+        /* We have been passed a command string */
+        args := splitCommandString(lineStr)
         if len(args) > 1 {
-            return requestPath, args[1:]
+            return NewFileSystemRequest(nil, nil, "", args[0], args[1:])
         } else {
-            return requestPath, nil
-        }
-    } else {
-        /* Not an absolute path, if starts with cgi-bin treat as within gopher directory, else as command in path */
-        if strings.HasPrefix(requestStr, CgiBinDirStr) {
-            args := splitLineStringArgs(requestStr)
-            requestPath := NewSanitizedRequestPath(rootDir, args[0])
-
-            if len(args) > 1 {
-                return requestPath, args[1:]
-            } else {
-                return requestPath, nil
-            }
-        } else {
-            args := splitLineStringArgs(requestStr)
-
-            /* Manually create specialised request path */
-            requestPath := NewRequestPath(args[0], "")
-
-            if len(args) > 1 {
-                return requestPath, args[1:]
-            } else {
-                return requestPath, nil
-            }
+            return NewFileSystemRequest(nil, nil, "", args[0], []string{})
         }
     }
-}
-
-/* Parses a gopher request string into a filesystem request path and string slice of arguments */
-func parseFileSystemRequest(rootDir, requestStr string) (*RequestPath, []string, *GophorError) {
-    /* Split the request string */
-    args := splitRequestStringArgs(requestStr)
-
-    /* Now URL decode all the parts. */
-    var err error
-    for i := range args {
-        args[i], err = url.QueryUnescape(args[i])
-        if err != nil {
-            return nil, nil, &GophorError{ InvalidRequestErr, err }
-        }
-    }
-
-    /* Create request path */
-    requestPath := NewSanitizedRequestPath(rootDir, args[0])
-
-    /* Return request path and args if precent */
-    if len(args) > 1 {
-        return requestPath, args[1:], nil
-    } else {
-        return requestPath, nil, nil
-    }
-}
-
-/* Parse new-line separated string of environment variables into a slice */
-func parseEnvironmentString(env string) []string {
-    return splitStringByRune(env, '\n')
-}
-
-/* Splits a request string into it's arguments with the '?' delimiter */
-func splitRequestStringArgs(requestStr string) []string {
-    return splitStringByRune(requestStr, '?')
 }
 
 /* Splits a line string into it's arguments with standard space delimiter */
-func splitLineStringArgs(requestStr string) []string {
+func splitCommandString(requestStr string) []string {
     split := Config.CmdParseLineRegex.Split(requestStr, -1)
     if split == nil {
         return []string{ requestStr }

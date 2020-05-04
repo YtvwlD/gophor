@@ -2,12 +2,13 @@ package main
 
 import (
     "strings"
+    "io"
 )
 
 const (
     /* Socket settings */
-    SocketReadBufSize = 256 /* Supplied selector should be <= this len */
-    MaxSocketReadChunks = 1
+    SocketReadBufSize = 1024
+    MaxSocketReadChunks = 4
 )
 
 type Worker struct {
@@ -36,16 +37,18 @@ func (worker *Worker) Serve() {
         /* Buffered read from listener */
         count, err = worker.Conn.Read(buf)
         if err != nil {
+            if err == io.EOF {
+                break
+            }
+
             Config.SysLog.Error("", "Error reading from socket on port %s: %s\n", worker.Conn.Host.Port, err.Error())
             return
         }
 
         /* Only copy non-null bytes */
         received = append(received, buf[:count]...)
-
-        /* If count is less than expected read size, we've hit EOF */
         if count < SocketReadBufSize {
-            /* EOF */
+            /* Reached EOF */
             break
         }
 
@@ -76,11 +79,11 @@ func (worker *Worker) Serve() {
 }
 
 func (worker *Worker) Log(format string, args ...interface{}) {
-    Config.AccLog.Info("("+worker.Conn.RemoteAddr().String()+") ", format, args...)
+    Config.AccLog.Info("("+worker.Conn.Client.Ip+") ", format, args...)
 }
 
 func (worker *Worker) LogError(format string, args ...interface{}) {
-    Config.AccLog.Error("("+worker.Conn.RemoteAddr().String()+") ", format, args...)
+    Config.AccLog.Error("("+worker.Conn.Client.Ip+") ", format, args...)
 }
 
 func (worker *Worker) Send(b []byte) *GophorError {
@@ -94,8 +97,22 @@ func (worker *Worker) Send(b []byte) *GophorError {
 }
 
 func (worker *Worker) RespondGopher(data []byte) *GophorError {
-    /* According to Gopher spec, only read up to first Tab or Crlf */
-    dataStr := readUpToFirstTabOrCrlf(data)
+    /* Only read up to first tab or cr-lf */
+    dataStr := ""
+    dataLen := len(data)
+    for i := 0; i < dataLen; i += 1 {
+        if data[i] == Tab[0] {
+            break
+        } else if data[i] == DOSLineEnd[0] {
+            if i == dataLen-1 || data[i+1] == DOSLineEnd[1] {
+                break
+            } else {
+                dataStr += string(data[i])
+            }
+        } else {
+            dataStr += string(data[i])
+        }
+    }
 
     /* Handle URL request if presented */
     lenBefore := len(dataStr)
@@ -109,42 +126,19 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
             /* Do nothing */
     }
 
-    /* Parse filesystem request and arg string slice */
-    requestPath, args, gophorErr := parseFileSystemRequest(worker.Conn.Host.RootDir, dataStr)
-    if gophorErr != nil {
-        return gophorErr
-    }
+    /* Create new filesystem request */
+    request := NewSanitizedFileSystemRequest(worker.Conn.Host, worker.Conn.Client, dataStr)
 
     /* Handle filesystem request */
-    response, gophorErr := Config.FileSystem.HandleRequest(worker.Conn.Host, requestPath, args)
+    response, gophorErr := Config.FileSystem.HandleRequest(request)
     if gophorErr != nil {
         /* Log to system and access logs, then return error */
         Config.SysLog.Error("", "Error serving %s: %s\n", dataStr, gophorErr.Error())
-        worker.LogError("Failed to serve: %s\n", requestPath.AbsolutePath())
+        worker.LogError("Failed to serve: %s\n", request.AbsPath())
         return gophorErr
     }
-    worker.Log("Served: %s\n", requestPath.AbsolutePath())
+    worker.Log("Served: %s\n", request.AbsPath())
 
     /* Serve response */
     return worker.Send(response)
-}
-
-func readUpToFirstTabOrCrlf(data []byte) string {
-    /* Only read up to first tab or cr-lf */
-    dataStr := ""
-    dataLen := len(data)
-    for i := 0; i < dataLen; i += 1 {
-        switch data[i] {
-            case '\t':
-                return dataStr
-            case DOSLineEnd[0]:
-                if i == dataLen-1 || data[i+1] == DOSLineEnd[1] {
-                    return dataStr
-                }
-            default:
-                dataStr += string(data[i])
-        }
-    }
-
-    return dataStr
 }

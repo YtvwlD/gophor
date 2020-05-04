@@ -2,20 +2,28 @@ package main
 
 import (
     "net"
+    "strconv"
 )
 
-/* Data structure to hold specific host details */
 type ConnHost struct {
+    /* Hold host specific details */
+
     Name    string
     Port    string
     RootDir string
 }
 
-/* Simple wrapper to Listener that holds onto virtual
- * host information and generates GophorConn
- * instances on each accept
- */
+type ConnClient struct {
+    /* Hold client specific details */
+    Ip   string
+    Port string
+}
+
 type GophorListener struct {
+    /* Simple net.Listener wrapper that holds onto virtual
+     * host information + generates GophorConn instances
+     */
+
     Listener net.Listener
     Host     *ConnHost
 }
@@ -41,7 +49,17 @@ func (l *GophorListener) Accept() (*GophorConn, error) {
 
     gophorConn := new(GophorConn)
     gophorConn.Conn = conn
-    gophorConn.Host = &ConnHost{ l.Host.Name, l.Host.Port, l.Host.RootDir }
+
+    /* Copy over listener host */
+    gophorConn.Host = l.Host
+
+    /* Should always be ok as listener is type TCP (see above) */
+    addr, _ := conn.RemoteAddr().(*net.TCPAddr)
+    gophorConn.Client = &ConnClient{
+        addr.IP.String(),
+        strconv.Itoa(addr.Port),
+    }
+
     return gophorConn, nil
 }
 
@@ -49,12 +67,12 @@ func (l *GophorListener) Addr() net.Addr {
     return l.Listener.Addr()
 }
 
-/* Simple wrapper to Conn with easier acccess
- * to hostname / port information
- */
 type GophorConn struct {
-    Conn     net.Conn
-    Host     *ConnHost
+    /* Simple net.Conn wrapper with virtual host and client info */
+
+    Conn   net.Conn
+    Host   *ConnHost
+    Client *ConnClient
 }
 
 func (c *GophorConn) Read(b []byte) (int, error) {
@@ -63,10 +81,6 @@ func (c *GophorConn) Read(b []byte) (int, error) {
 
 func (c *GophorConn) Write(b []byte) (int, error) {
     return c.Conn.Write(b)
-}
-
-func (c *GophorConn) RemoteAddr() net.Addr {
-    return c.Conn.RemoteAddr()
 }
 
 func (c *GophorConn) Close() error {

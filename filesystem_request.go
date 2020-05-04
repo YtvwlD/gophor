@@ -5,32 +5,126 @@ import (
     "strings"
 )
 
-/* FileSystemRequest:
- * Makes a request to the filesystem either through
- * the FileCache or directly to a function like listDir().
- * It carries the requested filesystem path and any extra
- * needed information, for the moment just a set of details
- * about the virtual host.. Opens things up a lot more for
- * the future :)
+/* TODO: having 2 separate rootdir string values in Host and RootDir
+ *       doesn't sit right with me. It cleans up code a lot for now
+ *       but could get confusing. Figure out a more elegant way of
+ *       structuring the filesystem request that gets passed around.
  */
+
 type FileSystemRequest struct {
-    Path *RequestPath
-    Host *ConnHost
+    /* A file system request with any possible required
+     * data required. Either handled through FileSystem or to
+     * direct function like listDir()
+     */
+
+    /* Virtual host and client information */
+    Host       *ConnHost
+    Client     *ConnClient
+
+    /* File path information */
+    RootDir    string
+    Rel        string
+    Abs        string
+
+    /* Other parameters */
+    Parameters []string /* CGI-bin params will be 1 length slice, shell commands populate >=1 */ 
 }
 
-type RequestPath struct {
-    Root    string
-    Path    string
-    AbsPath string /* Cache the absolute path */
+func NewSanitizedFileSystemRequest(host *ConnHost, client *ConnClient, request string) *FileSystemRequest {
+    /* Split dataStr into request path and parameter string (if pressent) */
+    requestPath, parameters := parseRequestString(request)
+    requestPath = sanitizeRequestPath(host.RootDir, requestPath)
+    return NewFileSystemRequest(host, client, host.RootDir, requestPath, parameters)
 }
 
-func NewSanitizedRequestPath(root, request string) *RequestPath {
-    /* Here we must sanitize the request path. Start with a clean :) */
-    requestPath := path.Clean(request)
+func NewFileSystemRequest(host *ConnHost, client *ConnClient, rootDir, requestPath string, parameters []string) *FileSystemRequest {
+    return &FileSystemRequest{
+        host,
+        client,
+        rootDir,
+        requestPath,
+        path.Join(rootDir, requestPath),
+        parameters,
+    }
+}
+
+func (r *FileSystemRequest) SelectorPath() string {
+    if r.Rel == "." {
+        return "/"
+    } else {
+        return "/"+r.Rel
+    }
+}
+
+func (r *FileSystemRequest) AbsPath() string {
+    return r.Abs
+}
+
+func (r *FileSystemRequest) RelPath() string {
+    return r.Rel
+}
+
+func (r *FileSystemRequest) JoinSelectorPath(extPath string) string {
+    if r.Rel == "." {
+        return path.Join("/", extPath)
+    } else {
+        return "/"+path.Join(r.Rel, extPath)
+    }
+}
+
+func (r *FileSystemRequest) JoinAbsPath(extPath string) string {
+    return path.Join(r.AbsPath(), extPath)
+}
+
+func (r *FileSystemRequest) JoinRelPath(extPath string) string {
+    return path.Join(r.RelPath(), extPath)
+}
+
+func (r *FileSystemRequest) HasAbsPathPrefix(prefix string) bool {
+    return strings.HasPrefix(r.AbsPath(), prefix)
+}
+
+func (r *FileSystemRequest) HasRelPathPrefix(prefix string) bool {
+    return strings.HasPrefix(r.RelPath(), prefix)
+}
+
+func (r *FileSystemRequest) HasRelPathSuffix(suffix string) bool {
+    return strings.HasSuffix(r.RelPath(), suffix)
+}
+
+func (r *FileSystemRequest) HasAbsPathSuffix(suffix string) bool {
+    return strings.HasSuffix(r.AbsPath(), suffix)
+}
+
+func (r *FileSystemRequest) TrimRelPathSuffix(suffix string) string {
+    return strings.TrimSuffix(strings.TrimSuffix(r.RelPath(), suffix), "/")
+}
+
+func (r *FileSystemRequest) TrimAbsPathSuffix(suffix string) string {
+    return strings.TrimSuffix(strings.TrimSuffix(r.AbsPath(), suffix), "/")
+}
+
+func (r *FileSystemRequest) JoinPathFromRoot(extPath string) string {
+    return path.Join(r.RootDir, extPath)
+}
+
+func (r *FileSystemRequest) NewStoredRequestAtRoot(relPath string, parameters []string) *FileSystemRequest {
+    /* DANGER THIS DOES NOT CHECK FOR BACK-DIR TRAVERSALS */
+    return NewFileSystemRequest(nil, nil, r.RootDir, relPath, parameters)
+}
+
+func (r *FileSystemRequest) NewStoredRequest() *FileSystemRequest {
+    return NewFileSystemRequest(nil, nil, r.RootDir, r.RelPath(), r.Parameters)
+}
+
+/* Sanitize a request path string */
+func sanitizeRequestPath(rootDir, requestPath string) string {
+    /* Start with a clean :) */
+    requestPath = path.Clean(requestPath)
 
     if path.IsAbs(requestPath) {
         /* Is absolute. Try trimming root and leading '/' */
-        requestPath = strings.TrimPrefix(strings.TrimPrefix(requestPath, root), "/")
+        requestPath = strings.TrimPrefix(strings.TrimPrefix(requestPath, rootDir), "/")
     } else {
         /* Is relative. If back dir traversal, give them root */
         if strings.HasPrefix(requestPath, "..") {
@@ -38,84 +132,5 @@ func NewSanitizedRequestPath(root, request string) *RequestPath {
         }
     }
 
-    return NewRequestPath(root, requestPath)
-}
-
-func NewRequestPath(root, relative string) *RequestPath {
-    return &RequestPath{ root, relative, path.Join(root, relative) }
-}
-
-func (rp *RequestPath) SelectorPath() string {
-    if rp.Path == "." {
-        return "/"
-    } else {
-        return "/"+rp.Path
-    }
-}
-
-func (rp *RequestPath) AbsolutePath() string {
-    return rp.AbsPath
-}
-
-func (rp *RequestPath) RelativePath() string {
-    return rp.Path
-}
-
-func (rp *RequestPath) JoinSelectorPath(extPath string) string {
-    if rp.Path == "." {
-        return path.Join("/", extPath)
-    } else {
-        return "/"+path.Join(rp.Path, extPath)
-    }
-}
-
-func (rp *RequestPath) JoinAbsolutePath(extPath string) string {
-    return path.Join(rp.AbsolutePath(), extPath)
-}
-
-func (rp *RequestPath) JoinRelativePath(extPath string) string {
-    return path.Join(rp.RelativePath(), extPath)
-}
-
-func (rp *RequestPath) HasAbsolutePrefix(prefix string) bool {
-    return strings.HasPrefix(rp.AbsolutePath(), prefix)
-}
-
-func (rp *RequestPath) HasRelativePrefix(prefix string) bool {
-    return strings.HasPrefix(rp.RelativePath(), prefix)
-}
-
-func (rp *RequestPath) HasRelativeSuffix(suffix string) bool {
-    return strings.HasSuffix(rp.RelativePath(), suffix)
-}
-
-func (rp *RequestPath) HasAbsoluteSuffix(suffix string) bool {
-    return strings.HasSuffix(rp.AbsolutePath(), suffix)
-}
-
-func (rp *RequestPath) TrimRelativeSuffix(suffix string) string {
-    return strings.TrimSuffix(rp.RelativePath(), suffix)
-}
-
-func (rp *RequestPath) TrimAbsoluteSuffix(suffix string) string {
-    return strings.TrimSuffix(rp.AbsolutePath(), suffix)
-}
-
-func (rp *RequestPath) JoinPathFromRoot(extPath string) string {
-    return path.Join(rp.Root, extPath)
-}
-
-func (rp *RequestPath) NewJoinPathFromCurrent(extPath string) *RequestPath {
-    /* DANGER THIS DOES NOT CHECK FOR BACK-DIR TRAVERSALS */
-    return NewRequestPath(rp.Root, rp.JoinRelativePath(extPath))
-}
-
-func (rp *RequestPath) NewTrimPathFromCurrent(trimSuffix string) *RequestPath {
-    /* DANGER THIS DOES NOT CHECK FOR BACK-DIR TRAVERSALS */
-    return NewRequestPath(rp.Root, rp.TrimRelativeSuffix(trimSuffix))
-}
-
-func (rp *RequestPath) NewPathAtRoot(extPath string) *RequestPath {
-    /* Sanitized and safe (hopefully) */
-    return NewSanitizedRequestPath(rp.Root, extPath)
+    return requestPath
 }

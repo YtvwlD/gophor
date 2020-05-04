@@ -74,14 +74,11 @@ const (
     TypeSubGophermap  = ItemType('=') /* [SERVER ONLY] Include subgophermap / regular file here. */
     TypeEndBeginList  = ItemType('*') /* [SERVER ONLY] Last line + directory listing -- stop processing gophermap and end on directory listing */
 
-    /* Planned To Be Supported */
-    TypeExec          = ItemType('$') /* [SERVER ONLY] Execute shell command and print stdout here */
-
     /* Default type */
     TypeDefault       = TypeBin
 
     /* Gophor specific types */
-    TypeInfoNotStated = ItemType('z') /* [INTERNAL USE] */
+    TypeInfoNotStated = ItemType('I') /* [INTERNAL USE] */
     TypeUnknown       = ItemType('?') /* [INTERNAL USE] */
 )
 

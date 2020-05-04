@@ -10,7 +10,7 @@ import (
 )
 
 const (
-    GophorVersion = "0.7-beta-PR1"
+    GophorVersion   = "0.7-beta-PR1"
 )
 
 var (
@@ -113,8 +113,10 @@ func setupServer() []*GophorListener {
     Config.SysLog.Info("", "Entered server directory: %s\n", *serverRoot)
 
     /* Setup initial server shell environment with the info we have to hand */
+
+    /* Setup regular and cgi shell environments */
+    Config.Env    = setupExecEnviron()
     Config.CgiEnv = setupInitialCgiEnviron()
-    Config.SysLog.Info("", "Using user supplied shell environment\n")
 
     /* Setup listeners */
     listeners := make([]*GophorListener, 0)
@@ -135,7 +137,6 @@ func setupServer() []*GophorListener {
 
     /* Compile user restricted files regex */
     Config.RestrictedFiles = compileUserRestrictedFilesRegex(*restrictedFiles)
-    Config.SysLog.Info("", "Compiled restricted files regular expressions\n")
 
     /* Setup file cache */
     Config.FileSystem = new(FileSystem)

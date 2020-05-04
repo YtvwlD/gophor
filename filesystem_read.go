@@ -113,16 +113,16 @@ func unixLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, er
 /* List the files in a directory, hiding those requested */
 func listDir(request *FileSystemRequest, hidden map[string]bool) ([]byte, *GophorError) {
     /* Open directory file descriptor */
-    fd, err := os.Open(request.Path.AbsolutePath())
+    fd, err := os.Open(request.AbsPath())
     if err != nil {
-        Config.SysLog.Error("", "failed to open %s: %s\n", request.Path, err.Error())
+        Config.SysLog.Error("", "failed to open %s: %s\n", request.AbsPath(), err.Error())
         return nil, &GophorError{ FileOpenErr, err }
     }
 
     /* Read files in directory */
     files, err := fd.Readdir(-1)
     if err != nil {
-        Config.SysLog.Error("", "failed to enumerate dir %s: %s\n", request.Path, err.Error())
+        Config.SysLog.Error("", "failed to enumerate dir %s: %s\n", request.AbsPath(), err.Error())
         return nil, &GophorError{ DirListErr, err }
     }
 
@@ -133,11 +133,11 @@ func listDir(request *FileSystemRequest, hidden map[string]bool) ([]byte, *Gopho
     dirContents := make([]byte, 0)
 
     /* First add a title + a space */
-    dirContents = append(dirContents, buildLine(TypeInfo, "[ "+request.Host.Name+request.Path.SelectorPath()+" ]", "TITLE", NullHost, NullPort)...)
+    dirContents = append(dirContents, buildLine(TypeInfo, "[ "+request.Host.Name+request.SelectorPath()+" ]", "TITLE", NullHost, NullPort)...)
     dirContents = append(dirContents, buildInfoLine("")...)
 
     /* Add a 'back' entry. GoLang Readdir() seems to miss this */
-    dirContents = append(dirContents, buildLine(TypeDirectory, "..", request.Path.JoinRelativePath(".."), request.Host.Name, request.Host.Port)...)
+    dirContents = append(dirContents, buildLine(TypeDirectory, "..", request.JoinRelPath(".."), request.Host.Name, request.Host.Port)...)
 
     /* Walk through files :D */
     for _, file := range files {
@@ -152,12 +152,12 @@ func listDir(request *FileSystemRequest, hidden map[string]bool) ([]byte, *Gopho
         switch {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
-                itemPath := request.Path.JoinSelectorPath(file.Name())
+                itemPath := request.JoinSelectorPath(file.Name())
                 dirContents = append(dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
-                itemPath := request.Path.JoinSelectorPath(file.Name())
+                itemPath := request.JoinSelectorPath(file.Name())
                 itemType := getItemType(itemPath)
                 dirContents = append(dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 

@@ -29,6 +29,7 @@ const (
     /* Executing */
     BufferReadErr       ErrorCode = iota
     CommandStartErr     ErrorCode = iota
+    CommandExitCodeErr  ErrorCode = iota
 
     /* Error Response Codes */
     ErrorResponse200 ErrorResponseCode = iota
@@ -85,6 +86,8 @@ func (e *GophorError) Error() string {
             str = "buffer read fail"
         case CommandStartErr:
             str = "command start fail"
+        case CommandExitCodeErr:
+            str = "command exit code non-zero"
 
         default:
             str = "Unknown"
@@ -132,6 +135,8 @@ func gophorErrorToResponseCode(code ErrorCode) ErrorResponseCode {
         case BufferReadErr:
             return ErrorResponse500
         case CommandStartErr:
+            return ErrorResponse500
+        case CommandExitCodeErr:
             return ErrorResponse500
 
         default:

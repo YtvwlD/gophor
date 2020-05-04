@@ -2,6 +2,7 @@ package main
 
 import (
     "os"
+    "sync"
 )
 
 const (
@@ -19,7 +20,7 @@ func cachePolicyFiles(description, admin, geoloc string) {
 
         /* Create new file object from generated file contents */
         fileContents := &GeneratedFileContents{ content }
-        file := NewFile(fileContents)
+        file := &File{ fileContents, sync.RWMutex{}, true, 0 }
 
         /* Trigger a load contents just to set it as fresh etc */
         file.LoadContents()
@@ -36,7 +37,7 @@ func cachePolicyFiles(description, admin, geoloc string) {
 
         /* Create new file object from generated file contents */
         fileContents := &GeneratedFileContents{ content }
-        file := NewFile(fileContents)
+        file := &File{ fileContents, sync.RWMutex{}, true, 0 }
 
         /* Trigger a load contents just to set it as fresh etc */
         file.LoadContents()

@@ -4,76 +4,107 @@ import (
     "os/exec"
     "syscall"
     "bytes"
-    "runtime"
+    "strconv"
     "io"
 )
 
+type ExecType int
 const (
-    SafeExecPath = ""
+    /* Executable type */
+    ExecTypeCgi     ExecType = iota
+    ExecTypeRegular ExecType = iota
 
+    SafeExecPath = "/usr/bin:/bin"
     ReaderBufSize = 1024
 )
 
-func setupInitialCgiEnviron(description string) []string {
-    return []string{
-        /* RFC 3875 standard */
-        envKeyValue("PATH",               SafeExecPath),
-        envKeyValue("GATEWAY_INTERFACE",  ""),
-        envKeyValue("SERVER_SOFTWARE",    "gophor "+GophorVersion),
-        envKeyValue("SERVER_ARCH",        runtime.GOARCH),
-        envKeyValue("SERVER_DESCRIPTION", description),
-        envKeyValue("SERVER_VERSION",     GophorVersion),
-        envKeyValue("SERVER_PROTOCOL",    "RFC1436"),
-        envKeyValue("COLUMNS",            Config.PageWidth),
-        envKeyValue("GOPHER_CHARSET",     Config.CharSet),
-        envKeyValue("SERVER_CODENAME",    ""),
+func setupExecEnviron() []string {
+    return []string {
+        envKeyValue("PATH", SafeExecPath),
     }
 }
 
-func executeFile(requestPath *RequestPath, args []string) ([]byte, *GophorError) {
+func setupInitialCgiEnviron() []string {
+    return []string{
+        /* RFC 3875 standard */
+        envKeyValue("GATEWAY_INTERFACE",  "CGI/1.1"), /* MUST be set to the dialect of CGI being used by the server */
+        envKeyValue("SERVER_SOFTWARE",    "gophor/"+GophorVersion), /* MUST be set to name and version of server software serving this request */
+        envKeyValue("SERVER_PROTOCOL",    "RFC1436"), /* MUST be set to name and version of application protocol used for this request */
+        envKeyValue("CONTENT_LENGTH",     "0"), /* Contains size of message-body attached (always 0 so we set here) */
+        envKeyValue("REQUEST_METHOD",     "GET"), /* MUST be set to method by which script should process request. Always GET */
+
+        /* Non-standard */
+        envKeyValue("PATH",               SafeExecPath),
+        envKeyValue("COLUMNS",            strconv.Itoa(Config.PageWidth)),
+        envKeyValue("GOPHER_CHARSET",     Config.CharSet),
+//        envKeyValue("SERVER_ARCH",        runtime.GOARCH),
+//        envKeyValue("SERVER_DESCRIPTION", description),
+//        envKeyValue("SERVER_VERSION",     GophorVersion),
+    }
+}
+
+func executeCgi(request *FileSystemRequest) ([]byte, *GophorError) {
+    /* Get initial CgiEnv variables */
+    cgiEnv := Config.CgiEnv
+
+    /* RFC 3875 standard */
+    cgiEnv = append(cgiEnv, envKeyValue("SERVER_NAME",     request.Host.Name)) /* MUST be set to name of server host client is connecting to */
+    cgiEnv = append(cgiEnv, envKeyValue("SERVER_PORT",     request.Host.Port)) /* MUST be set to the server port that client is connecting to */
+    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_ADDR",     request.Client.Ip)) /* Remote client addr, MUST be set */
+
+    cgiEnv = append(cgiEnv, envKeyValue("QUERY_STRING",    request.Parameters[0])) /* URL encoded search or parameter string, MUST be set even if empty */
+
+//    cgiEnv = append(cgiEnv, envKeyValue("PATH_INFO",       "")) /* Sub-resource to be fetched by script, derived from path hierarch portion of URI. NOT URL encoded */
+    cgiEnv = append(cgiEnv, envKeyValue("PATH_TRANSLATED", request.AbsPath())) /* Take PATH_INFO, parse as local URI and append root dir */
+//    cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_NAME",     "")) /* URI path (not URL encoded) which could identify the CGI script (rather than script's output) */
+
+//    cgiEnv = append(cgiEnv, envKeyValue("AUTH_TYPE",       "")) /* Any method used my server to authenticate user, MUST be set if auth'd */
+//    cgiEnv = append(cgiEnv, envKeyValue("CONTENT_TYPE",    "")) /* Only a MUST if HTTP content-type set (so never for gopher) */
+//    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_IDENT",    "")) /* Remote client identity information */
+//    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_HOST",     "")) /* Remote client domain name */
+//    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_USER",     "")) /* Remote user ID, if AUTH_TYPE, MUST be set */
+
+    /* Non-standard */
+    cgiEnv = append(cgiEnv, envKeyValue("SELECTOR",        request.SelectorPath()))
+//    cgiEnv = append(cgiEnv, envKeyValue("LOCAL_ADDR",      ""))
+//    cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_FILENAME", ""))
+    cgiEnv = append(cgiEnv, envKeyValue("DOCUMENT_ROOT",   request.RootDir))
+//    cgiEnv = append(cgiEnv, envKeyValue("GOPHER_FILETYPE", ""))
+//    cgiEnv = append(cgiEnv, envKeyValue("GOPHER_REFERER",  ""))
+//    cgiEnv = append(cgiEnv, envKeyValue("TLS",             "")
+//    cgiEnv = append(cgiEnv, envKeyValue("SERVER_TLS_PORT", ""),    
+//    cgiEnv = append(cgiEnv, envKeyValue("SESSION_ID",      ""))
+//    cgiEnv = append(cgiEnv, envKeyValue("SERVER_HOST",     ""))
+//    cgiEnv = append(cgiEnv, envKeyValue("SEARCHREQUEST",   ""))
+
+    return execute(cgiEnv, request.AbsPath(), nil)
+}
+
+func executeFile(request *FileSystemRequest) ([]byte, *GophorError) {
+    return execute(Config.Env, request.AbsPath(), request.Parameters)
+}
+
+func executeCommand(request *FileSystemRequest) ([]byte, *GophorError) {
+    return execute(Config.Env, request.AbsPath(), request.Parameters)
+}
+
+func execute(env []string, path string, args []string) ([]byte, *GophorError) {
     /* Create stdout, stderr buffers */
     outBuffer := &bytes.Buffer{}
-    errBuffer := &bytes.Buffer{}
 
     /* Setup command */
     var cmd *exec.Cmd
     if args != nil {
-        cmd = exec.Command(requestPath.AbsolutePath(), args...)
+        cmd = exec.Command(path, args...)
     } else {
-        cmd = exec.Command(requestPath.AbsolutePath())
+        cmd = exec.Command(path)
     }
 
-    /* Setup remaining CGI spec environment values */
-    cmd.Env = Config.CgiEnv
+    /* Setup cmd env */
+    cmd.Env = env
 
-    /* RFC 1436 standard */
-    cmd.Env = append(cmd.Env, envKeyValue("CONTENT_LENGTH",  ""),
-    cmd.Env = append(cmd.Env, envKeyValue("SERVER_NAME",     ""))
-    cmd.Env = append(cmd.Env, envKeyValue("SERVER_PORT",     ""))
-    cmd.Env = append(cmd.Env, envKeyValue("REQUEST_METHOD",  ""))
-    cmd.Env = append(cmd.Env, envKeyValue("DOCUMENT_ROOT",   ""))
-    cmd.Env = append(cmd.Env, envKeyValue("SCRIPT_NAME",     ""))
-    cmd.Env = append(cmd.Env, envKeyValue("SCRIPT_FILENAME", ""))
-    cmd.Env = append(cmd.Env, envKeyValue("LOCAL_ADDR",      ""))
-    cmd.Env = append(cmd.Env, envKeyValue("REMOTE_ADDR",     ""))
-    cmd.Env = append(cmd.Env, envKeyValue("SESSION_ID",      ""))
-    cmd.Env = append(cmd.Env, envKeyValue("GOPHER_FILETYPE", ""))
-    cmd.Env = append(cmd.Env, envKeyValue("GOPHER_REFERER",  ""))
-    cmd.Env = append(cmd.Env, envKeyValue("SERVER_HOST",     ""))
-    cmd.Env = append(cmd.Env, envKeyValue("REQUEST",         ""))
-    cmd.Env = append(cmd.Env, envKeyValue("SEARCHREQUEST",   ""))
-    cmd.Env = append(cmd.Env, envKeyValue("QUERY_STRING",    ""))
-//    environ = append(environ, envKeyValue("TLS", "")
-//    environ = append(environ, envKeyValue("SERVER_TLS_PORT", ""),
-//    environ = append(environ, envKeyValue("HTTP_ACCEPT_CHARSET", "")
-//    environ = append(environ, envKeyValue("HTTP_REFERER", "")
-
-    /* Non-standard */
-    environ = append(environ, envKeyValue("SELECTOR", ""))
-
-    /* Set buffers*/
+    /* Setup out buffer */
     cmd.Stdout = outBuffer
-    cmd.Stderr = errBuffer
 
     /* Start executing! */
     err := cmd.Start()
@@ -100,20 +131,16 @@ func executeFile(requestPath *RequestPath, args []string) ([]byte, *GophorError)
     }
     
     if exitCode != 0 {
-        /* If non-zero exit code return error, print stderr to sys log */
-        errContents, gophorErr := readBuffer(errBuffer)
-        if gophorErr == nil {
-            /* Only print if we successfully fetched errContents */
-            Config.SysLog.Error("", "Error executing: %s %v\n%s\n", requestPath.AbsolutePath(), args, errContents)
-        }
-
-        return nil, &GophorError{  }
+        /* If non-zero exit code return error */
+        //errContents, gophorErr := readBuffer(errBuffer)
+        Config.SysLog.Error("", "Error executing: %s\n", cmd.String(), args)
+        return nil, &GophorError{ CommandExitCodeErr, err }
     } else {
         /* If zero exit code try return outContents and no error */
         outContents, gophorErr := readBuffer(outBuffer)
         if gophorErr != nil {
             /* Failed fetching outContents, return error */
-            return nil, &GophorError{ }
+            return nil, gophorErr
         }
 
         return outContents, nil
