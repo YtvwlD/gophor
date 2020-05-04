@@ -241,8 +241,7 @@ func formatGophermapFooter(text string, useSeparator bool) []byte {
             ret = append(ret, buildInfoLine(line)...)
         }
     }
-    ret = append(ret, []byte(LastLine)...)
-    return ret
+    return append(ret, []byte(LastLine)...)
 }
 
 /* Replace standard replacement strings */

@@ -87,6 +87,7 @@ func (fs *FileSystem) HandleRequest(request *FileSystemRequest) ([]byte, *Gophor
 
             /* Append footer text (contains last line) and return */
             output = append(output, Config.FooterText...)
+
             return output, nil
 
         /* Regular file */

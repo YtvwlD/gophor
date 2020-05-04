@@ -37,9 +37,6 @@ func setupInitialCgiEnviron() []string {
         envKeyValue("PATH",               SafeExecPath),
         envKeyValue("COLUMNS",            strconv.Itoa(Config.PageWidth)),
         envKeyValue("GOPHER_CHARSET",     Config.CharSet),
-//        envKeyValue("SERVER_ARCH",        runtime.GOARCH),
-//        envKeyValue("SERVER_DESCRIPTION", description),
-//        envKeyValue("SERVER_VERSION",     GophorVersion),
     }
 }
 
@@ -52,12 +49,20 @@ func executeCgi(request *FileSystemRequest) ([]byte, *GophorError) {
     cgiEnv = append(cgiEnv, envKeyValue("SERVER_PORT",     request.Host.Port)) /* MUST be set to the server port that client is connecting to */
     cgiEnv = append(cgiEnv, envKeyValue("REMOTE_ADDR",     request.Client.Ip)) /* Remote client addr, MUST be set */
 
-    cgiEnv = append(cgiEnv, envKeyValue("QUERY_STRING",    request.Parameters[0])) /* URL encoded search or parameter string, MUST be set even if empty */
+    /* This way we get query string without initial delimiter */
+    var queryString string
+    if len(request.Parameters[0]) > 0 {
+        queryString = request.Parameters[0][1:]
+    } else {
+        queryString = request.Parameters[0]
+    }
+    cgiEnv = append(cgiEnv, envKeyValue("QUERY_STRING",    queryString)) /* URL encoded search or parameter string, MUST be set even if empty */
 
-//    cgiEnv = append(cgiEnv, envKeyValue("PATH_INFO",       "")) /* Sub-resource to be fetched by script, derived from path hierarch portion of URI. NOT URL encoded */
+    cgiEnv = append(cgiEnv, envKeyValue("PATH_INFO",       "")) /* Sub-resource to be fetched by script, derived from path hierarch portion of URI. NOT URL encoded */
     cgiEnv = append(cgiEnv, envKeyValue("PATH_TRANSLATED", request.AbsPath())) /* Take PATH_INFO, parse as local URI and append root dir */
-//    cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_NAME",     "")) /* URI path (not URL encoded) which could identify the CGI script (rather than script's output) */
+    cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_NAME",     "/"+request.RelPath())) /* URI path (not URL encoded) which could identify the CGI script (rather than script's output) */
 
+/* We ignore these due to just CBA and we're not implementing authorization yet */
 //    cgiEnv = append(cgiEnv, envKeyValue("AUTH_TYPE",       "")) /* Any method used my server to authenticate user, MUST be set if auth'd */
 //    cgiEnv = append(cgiEnv, envKeyValue("CONTENT_TYPE",    "")) /* Only a MUST if HTTP content-type set (so never for gopher) */
 //    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_IDENT",    "")) /* Remote client identity information */
@@ -66,16 +71,9 @@ func executeCgi(request *FileSystemRequest) ([]byte, *GophorError) {
 
     /* Non-standard */
     cgiEnv = append(cgiEnv, envKeyValue("SELECTOR",        request.SelectorPath()))
-//    cgiEnv = append(cgiEnv, envKeyValue("LOCAL_ADDR",      ""))
-//    cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_FILENAME", ""))
+    cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_FILENAME", request.AbsPath()))
     cgiEnv = append(cgiEnv, envKeyValue("DOCUMENT_ROOT",   request.RootDir))
-//    cgiEnv = append(cgiEnv, envKeyValue("GOPHER_FILETYPE", ""))
-//    cgiEnv = append(cgiEnv, envKeyValue("GOPHER_REFERER",  ""))
-//    cgiEnv = append(cgiEnv, envKeyValue("TLS",             "")
-//    cgiEnv = append(cgiEnv, envKeyValue("SERVER_TLS_PORT", ""),    
-//    cgiEnv = append(cgiEnv, envKeyValue("SESSION_ID",      ""))
-//    cgiEnv = append(cgiEnv, envKeyValue("SERVER_HOST",     ""))
-//    cgiEnv = append(cgiEnv, envKeyValue("SEARCHREQUEST",   ""))
+    cgiEnv = append(cgiEnv, envKeyValue("REQUEST_URI",     "/"+request.RelPath()+request.Parameters[0]))
 
     return execute(cgiEnv, request.AbsPath(), nil)
 }
@@ -133,7 +131,7 @@ func execute(env []string, path string, args []string) ([]byte, *GophorError) {
     if exitCode != 0 {
         /* If non-zero exit code return error */
         //errContents, gophorErr := readBuffer(errBuffer)
-        Config.SysLog.Error("", "Error executing: %s\n", cmd.String(), args)
+        Config.SysLog.Error("", "Error executing: %s\n", cmd.String())
         return nil, &GophorError{ CommandExitCodeErr, err }
     } else {
         /* If zero exit code try return outContents and no error */

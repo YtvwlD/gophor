@@ -133,8 +133,6 @@ func (worker *Worker) RespondGopher(data []byte) *GophorError {
     response, gophorErr := Config.FileSystem.HandleRequest(request)
     if gophorErr != nil {
         /* Log to system and access logs, then return error */
-        Config.SysLog.Error("", "Error serving %s: %s\n", dataStr, gophorErr.Error())
-        worker.LogError("Failed to serve: %s\n", request.AbsPath())
         return gophorErr
     }
     worker.Log("Served: %s\n", request.AbsPath())
