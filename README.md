@@ -221,13 +221,15 @@ Null port: `0`
 
 # Todos
 
-Shortterm:
-
 - Character encoding support
 
 - Fix file cache only updating if main gophermap changes (but not sub files)
 
-Longterm:
+- Personal user gopherspaces
+
+- Finish checking we abide by CGI 1.1 standard
+
+- Remapping of file paths
 
 - Rotating logs
 
