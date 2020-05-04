@@ -44,12 +44,14 @@ func executeCgi(request *FileSystemRequest) ([]byte, *GophorError) {
     /* Get initial CgiEnv variables */
     cgiEnv := Config.CgiEnv
 
-    /* RFC 3875 standard */
     cgiEnv = append(cgiEnv, envKeyValue("SERVER_NAME",     request.Host.Name)) /* MUST be set to name of server host client is connecting to */
     cgiEnv = append(cgiEnv, envKeyValue("SERVER_PORT",     request.Host.Port)) /* MUST be set to the server port that client is connecting to */
     cgiEnv = append(cgiEnv, envKeyValue("REMOTE_ADDR",     request.Client.Ip)) /* Remote client addr, MUST be set */
 
-    /* This way we get query string without initial delimiter */
+    /* Fuck it. For now, we don't support PATH_INFO. It's a piece of shit variable */
+//    cgiEnv = append(cgiEnv, envKeyValue("PATH_INFO",       request.Parameters[0])) /* Sub-resource to be fetched by script, derived from path hierarch portion of URI. NOT URL encoded */
+
+    /* We store the query string in Parameters[1]. Ensure we git without initial delimiter */
     var queryString string
     if len(request.Parameters[0]) > 0 {
         queryString = request.Parameters[0][1:]
@@ -58,9 +60,13 @@ func executeCgi(request *FileSystemRequest) ([]byte, *GophorError) {
     }
     cgiEnv = append(cgiEnv, envKeyValue("QUERY_STRING",    queryString)) /* URL encoded search or parameter string, MUST be set even if empty */
 
-    cgiEnv = append(cgiEnv, envKeyValue("PATH_INFO",       "")) /* Sub-resource to be fetched by script, derived from path hierarch portion of URI. NOT URL encoded */
     cgiEnv = append(cgiEnv, envKeyValue("PATH_TRANSLATED", request.AbsPath())) /* Take PATH_INFO, parse as local URI and append root dir */
     cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_NAME",     "/"+request.RelPath())) /* URI path (not URL encoded) which could identify the CGI script (rather than script's output) */
+
+    cgiEnv = append(cgiEnv, envKeyValue("SELECTOR",        request.SelectorPath()))
+    cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_FILENAME", request.AbsPath()))
+    cgiEnv = append(cgiEnv, envKeyValue("DOCUMENT_ROOT",   request.RootDir))
+    cgiEnv = append(cgiEnv, envKeyValue("REQUEST_URI",     "/"+request.RelPath()+request.Parameters[0]))
 
 /* We ignore these due to just CBA and we're not implementing authorization yet */
 //    cgiEnv = append(cgiEnv, envKeyValue("AUTH_TYPE",       "")) /* Any method used my server to authenticate user, MUST be set if auth'd */
@@ -68,12 +74,6 @@ func executeCgi(request *FileSystemRequest) ([]byte, *GophorError) {
 //    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_IDENT",    "")) /* Remote client identity information */
 //    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_HOST",     "")) /* Remote client domain name */
 //    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_USER",     "")) /* Remote user ID, if AUTH_TYPE, MUST be set */
-
-    /* Non-standard */
-    cgiEnv = append(cgiEnv, envKeyValue("SELECTOR",        request.SelectorPath()))
-    cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_FILENAME", request.AbsPath()))
-    cgiEnv = append(cgiEnv, envKeyValue("DOCUMENT_ROOT",   request.RootDir))
-    cgiEnv = append(cgiEnv, envKeyValue("REQUEST_URI",     "/"+request.RelPath()+request.Parameters[0]))
 
     return execute(cgiEnv, request.AbsPath(), nil)
 }
