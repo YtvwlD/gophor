@@ -14,7 +14,9 @@ func parseRequestString(request string) (string, []string) {
         }
         i += 1
     }
-    return request[:i], []string{ request[i:] }
+
+    /* Use strings.TrimPrefix() as it returns empty string for zero length string */
+    return request[:i], []string{ strings.TrimPrefix(request[i:], "?") }
 }
 
 /* Parse line type from contents */

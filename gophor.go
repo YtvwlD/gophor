@@ -95,7 +95,7 @@ func setupServer() []*GophorListener {
 
     /* Setup the server configuration instance and enter as much as we can right now */
     Config = new(ServerConfig)
-    Config.PageWidth   = *pageWidth
+    Config.PageWidth = *pageWidth
 
     /* Have to be set AFTER page width variable set */
     Config.FooterText  = formatGophermapFooter(*footerText, !*footerSeparator)
