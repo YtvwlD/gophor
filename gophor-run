@@ -1,0 +1,193 @@
+#!/bin/sh
+
+set -e
+
+# Config directory and files
+USER_CONF_DIR="$HOME/.gophor"
+SYS_CONF_DIR='/etc/gophor'
+if [ -d "$USER_CONF_DIR" ]; then
+    CONF_DIR="$USER_CONF_DIR"
+else
+    CONF_DIR="$SYS_CONF_DIR"
+fi
+CONF_FILE="${CONF_DIR}/gophor.conf"
+RESTRICT_FILE="${CONF_DIR}/restricted_files.conf"
+RESTRICT_CMDS="${CONF_DIR}/restricted_commands.conf"
+FOOTER_TXT="${CONF_DIR}/footer.txt"
+
+# Value constants
+__separator=': '
+
+KEY_PORT="port${__separator}"
+KEY_HOSTNAME="hostname${__separator}"
+KEY_ROOTDIR="root dir${__separator}"
+KEY_BINDADDR="bind addr${__separator}"
+KEY_ACCLOG="access log${__separator}"
+KEY_SYSLOG="system log${__separator}"
+KEY_LOGOPTS="log options${__separator}"
+KEY_LOGOUTPUT="log output${__separator}"
+KEY_MONITORFREQ="file monitor freq${__separator}"
+KEY_CACHEFILEMAX="cache file max${__separator}"
+KEY_CACHESIZE="cache size${__separator}"
+KEY_DISABLECACHE="disable cache${__separator}"
+KEY_DISABLECGI="disable cgi${__separator}"
+KEY_NOFOOTSEP="no footer separator${__separator}"
+KEY_PAGEWIDTH="page width${__separator}"
+KEY_ADMIN="admin email${__separator}"
+KEY_DESCRIPTION="server description${__separator}"
+KEY_GEOLOC="server geolocation${__separator}"
+
+# Global variables
+CONF_FILE_CONTENTS=''
+
+get_key_value() {
+    echo "$CONF_FILE_CONTENTS" | grep -E "^${1}" | sed -e "s|^${1}||"
+}
+
+main() {
+    local port portval
+    local hostname hostnameval
+    local bindaddr bindaddrval
+    local acclog acclogval
+    local syslog syslogval
+    local logopts logoptsval
+    local logoutput logoutputval
+    local monitorfreq monitorfreqval
+    local cachefilemax cachefilemaxval
+    local cachesize cachesizeval
+    local disablecache disablecacheval
+    local disablecgi disablecgival
+    local nofooterseparator nofooterseparatorval
+    local pagewidth pagewidthval
+    local admin adminval
+    local description descriptionval
+    local geoloc geolocval
+    local restrictedfiles restrictedfilesval
+    local restrictedcommands restrictedcommandsval
+    local footertext footertextval
+    local daemon=1 exec_str="gophor"
+
+    if [ -f "$CONF_FILE" ]; then
+        CONF_FILE_CONTENTS="$(cat "${CONF_FILE}")"
+
+        portval="$(get_key_value "${KEY_PORT}")"
+        if [ ! -z "$portval" ]; then
+            port="-port"
+        fi
+
+        hostnameval="$(get_key_value "${KEY_HOSTNAME}")"
+        if [ ! -z "$hostnameval" ]; then
+            hostname="-hostname"
+        fi
+
+        bindaddr="-bind-addr"
+        bindaddrval="$(get_key_value "${KEY_BINDADDR}")"
+        if [ -z "$bindaddrval" ]; then
+            bindaddrval="0.0.0.0"
+        fi
+
+        acclogval="$(get_key_value "${KEY_ACCLOG}")"
+        if [ ! -z "$acclogval" ]; then
+            acclog="-access-log"
+        fi
+
+        syslogval="$(get_key_value "${KEY_SYSLOG}")"
+        if [ ! -z "$syslogval" ]; then
+            syslog="-system-log"
+        fi
+
+        logoptsval="$(get_key_value "${KEY_LOGOPTS}")"
+        if [ ! -z "$logoptsval" ]; then
+            logopts="-log-opts"
+        fi
+
+        logoutputval="$(get_key_value "${KEY_LOGOUTPUT}")"
+        if [ ! -z "$logoutputval" ]; then
+            logoutput="-log-output"
+            if [ "$logoutputval" == 'stderr' ] || [ "$logoutput" = '' ]; then
+                daemon=1
+            else
+                daemon=0
+            fi
+        fi
+
+        monitorfreqval="$(get_key_value "${KEY_MONITORFREQ}")"
+        if [ ! -z "$monitorfreqval" ]; then
+            monitorfreq="-file-monitor-freq"
+        fi
+
+        cachefilemaxval="$(get_key_value "${KEY_CACHEFILEMAX}")"
+        if [ ! -z "$cachefilemaxval" ]; then
+            cachefilemax="-cache-file-max"
+        fi
+
+        cachesizeval="$(get_key_value "${KEY_CACHESIZE}")"
+        if [ ! -z "$cachesizeval" ]; then
+            cachesize="-cache-size"
+        fi
+
+        disablecacheval="$(get_key_value "${KEY_DISABLECACHE}")"
+        if [ ! -z "$disablecacheval" ]; then
+            disablecache="-disable-cache="
+        fi
+
+        disablecgival="$(get_key_value "${KEY_DISABLECGI}")"
+        if [ ! -z "$disablecgival" ]; then
+            disablecgi="-disable-cgi="
+        fi
+
+        nofooterseparatorval="$(get_key_value "${KEY_NOFOOTSEP}")"
+        if [ ! -z "$nofooterseparatorval" ]; then
+            nofooterseparator="-no-footer-separator="
+        fi
+
+        pagewidthval="$(get_key_value "${KEY_PAGEWIDTH}")"
+        if [ ! -z "$pagewidthval" ]; then
+            pagewidth="-page-width"
+        fi
+
+        adminval="$(get_key_value "${KEY_ADMIN}")"
+        if [ ! -z "$adminval" ]; then
+            admin="-admin-email"
+        fi
+
+        descriptionval="$(get_key_value "${KEY_DESCRIPTION}")"
+        if [ ! -z "$descriptionval" ]; then
+            description="-description"
+        fi
+
+        geolocval="$(get_key_value "${KEY_GEOLOC}")"
+        if [ ! -z "$geolocval" ]; then
+            geoloc="-geoloc"
+        fi
+
+        if [ -f "$RESTRICT_FILE" ]; then
+            restrictedfilesval="$(cat "${RESTRICT_FILE}")"
+            if [ ! -z "$restrictedfilesval" ]; then
+                restrictedfiles="-restricted-files"
+            fi
+        fi
+
+        if [ -f "$RESTRICT_CMDS" ]; then
+            restrictedcommandsval="$(cat "${RESTRICT_CMDS}")"
+            if [ ! -z "$restrictedcommandsval" ]; then
+                restrictedcommands="-restrict-commands"
+            fi
+        fi
+
+        if [ -f "$FOOTER_TXT" ]; then
+            footertextval="$(cat "${FOOTER_TXT}")"
+            if [ ! -z "$footertextval" ]; then
+                footertext="-footer"
+            fi
+        fi
+    fi
+
+    if [ "$daemon" -eq 1 ]; then
+        $exec_str "$port" "$portval" "$hostname" "$hostnameval" "$bindaddr" "$bindaddrval" "$acclog" "$acclogval" "$syslog" "$syslogval" "$logopts" "$logoptsval" "$logoutput" "$logoutputval" "$monitorfreq" "$monitorfreqval" "$cachefilemax" "$cachefilemaxval" "$cachesize" "$cachesizeval" "${disablecache}${disablecacheval}" "${disablecgi}${disablecgival}" "${nofooterseparator}${nofooterseparatorval}" "$pagewidth" "$pagewidthval" "$admin" "$adminval" "$description" "$descriptionval" "$geoloc" "$geolocval" "$restrictedfiles" "$restrictedfilesval" "$restrictedcommands" "$restrictedcommandsval" "$footertext" "$footertextval"
+    else
+        ($exec_str "$port" "$portval" "$hostname" "$hostnameval" "$bindaddr" "$bindaddrval" "$acclog" "$acclogval" "$syslog" "$syslogval" "$logopts" "$logoptsval" "$logoutput" "$logoutputval" "$monitorfreq" "$monitorfreqval" "$cachefilemax" "$cachefilemaxval" "$cachesize" "$cachesizeval" "${disablecache}${disablecacheval}" "${disablecgi}${disablecgival}" "${nofooterseparator}${nofooterseparatorval}" "$pagewidth" "$pagewidthval" "$admin" "$adminval" "$description" "$descriptionval" "$geoloc" "$geolocval" "$restrictedfiles" "$restrictedfilesval" "$restrictedcommands" "$restrictedcommandsval" "$footertext" "$footertextval" &) > /dev/null 2>&1
+    fi
+}
+
+main
