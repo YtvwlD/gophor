@@ -71,6 +71,7 @@ func setupServer() []*GophorListener {
 
     pageWidth         := flag.Int("page-width", 80, "Change page width used when formatting output.")
     restrictedFiles   := flag.String("restrict-files", "", "New-line separated list of regex statements restricting files from showing in directory listings.")
+    disableCgi        := flag.Bool("disable-cgi", false, "Disable CGI and all executable support.")
 
     /* Logging settings */
     systemLogPath     := flag.String("system-log", "", "Change server system log file (blank outputs to stderr).")
@@ -95,7 +96,8 @@ func setupServer() []*GophorListener {
 
     /* Setup the server configuration instance and enter as much as we can right now */
     Config = new(ServerConfig)
-    Config.PageWidth = *pageWidth
+    Config.PageWidth  = *pageWidth
+    Config.CgiEnabled = !*disableCgi
 
     /* Have to be set AFTER page width variable set */
     Config.FooterText  = formatGophermapFooter(*footerText, !*footerSeparator)

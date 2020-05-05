@@ -14,6 +14,7 @@ type ServerConfig struct {
     /* Executable Settings */
     Env               []string
     CgiEnv            []string
+    CgiEnabled        bool
 
     /* Content settings */
     CharSet           string

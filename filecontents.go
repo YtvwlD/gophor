@@ -192,8 +192,10 @@ func readGophermap(request *FileSystemRequest) ([]GophermapSection, *GophorError
                     subRequest := parseLineRequestString(request, line[1:])
 
                     if !subRequest.HasAbsPathPrefix("/") {
-                        /* Special case here where command must be in path, return GophermapExecCommand */
-                        sections = append(sections, &GophermapExecCommand{ subRequest })
+                        if Config.CgiEnabled {
+                            /* Special case here where command must be in path, return GophermapExecCommand */
+                            sections = append(sections, &GophermapExecCommand{ subRequest })
+                        }
                     } else if subRequest.RelPath() == "" {
                         /* path cleaning failed */
                         break
@@ -212,7 +214,7 @@ func readGophermap(request *FileSystemRequest) ([]GophermapSection, *GophorError
                     /* Check if we've been supplied subgophermap or regular file */
                     if subRequest.HasAbsPathSuffix("/"+GophermapFileStr) {
                         /* If executable, store as GophermapExecutable, else readGophermap() */
-                        if stat.Mode().Perm() & 0100 != 0 {
+                        if stat.Mode().Perm() & 0100 != 0 && Config.CgiEnabled {
                             sections = append(sections, &GophermapExecFile { subRequest })
                         } else {
                             /* Treat as any other gophermap! */
@@ -223,7 +225,7 @@ func readGophermap(request *FileSystemRequest) ([]GophermapSection, *GophorError
                         }
                     } else {
                         /* If stored in cgi-bin store as GophermapExecutable, else read into GophermapText */
-                        if subRequest.HasRelPathPrefix(CgiBinDirStr) {
+                        if subRequest.HasRelPathPrefix(CgiBinDirStr) && Config.CgiEnabled {
                             sections = append(sections, &GophermapExecCgi{ subRequest })
                         } else {
                             fileContents, gophorErr := readIntoGophermap(subRequest.AbsPath())

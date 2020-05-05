@@ -30,6 +30,7 @@ const (
     BufferReadErr       ErrorCode = iota
     CommandStartErr     ErrorCode = iota
     CommandExitCodeErr  ErrorCode = iota
+    CgiDisabledErr      ErrorCode = iota
 
     /* Error Response Codes */
     ErrorResponse200 ErrorResponseCode = iota
@@ -88,6 +89,8 @@ func (e *GophorError) Error() string {
             str = "command start fail"
         case CommandExitCodeErr:
             str = "command exit code non-zero"
+        case CgiDisabledErr:
+            str = "ignoring /cgi-bin request, CGI disabled"
 
         default:
             str = "Unknown"
@@ -138,6 +141,8 @@ func gophorErrorToResponseCode(code ErrorCode) ErrorResponseCode {
             return ErrorResponse500
         case CommandExitCodeErr:
             return ErrorResponse500
+        case CgiDisabledErr:
+            return ErrorResponse404
 
         default:
             return ErrorResponse503

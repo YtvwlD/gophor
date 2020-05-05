@@ -57,7 +57,7 @@ func (fs *FileSystem) HandleRequest(request *FileSystemRequest) ([]byte, *Gophor
     switch {
         /* Directory */
         case stat.Mode() & os.ModeDir != 0:
-            /* Ignore cgi-bin directory */
+            /* Ignore anything under cgi-bin directory */
             if request.HasRelPathPrefix(CgiBinDirStr) {
                 return nil, &GophorError{ IllegalPathErr, nil }
             }
@@ -92,9 +92,13 @@ func (fs *FileSystem) HandleRequest(request *FileSystemRequest) ([]byte, *Gophor
 
         /* Regular file */
         case stat.Mode() & os.ModeType == 0:
-            /* If cgi-bin, return executed contents. Else, fetch */
+            /* If cgi-bin and CGI enabled, return executed contents. Else, fetch */
             if request.HasRelPathPrefix(CgiBinDirStr) {
-                return executeCgi(request)
+                if Config.CgiEnabled {
+                    return executeCgi(request)
+                } else {
+                    return nil, &GophorError{ CgiDisabledErr, nil }
+                }
             } else {
                 return fs.FetchFile(request)
             }
