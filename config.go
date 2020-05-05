@@ -22,8 +22,9 @@ type ServerConfig struct {
     PageWidth         int
 
     /* Regex */
-    CmdParseLineRegex *regexp.Regexp
-    RestrictedFiles   []*regexp.Regexp
+    CmdParseLineRegex  *regexp.Regexp
+    RestrictedFiles    []*regexp.Regexp
+    RestrictedCommands []*regexp.Regexp
 
     /* Logging */
     SysLog            LoggerInterface

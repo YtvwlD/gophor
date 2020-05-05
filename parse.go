@@ -63,24 +63,24 @@ func parseLineType(line string) ItemType {
 }
 
 /* Parses a line in a gophermap into a filesystem request path and a string slice of arguments */
-func parseLineRequestString(request *FileSystemRequest, lineStr string) (*FileSystemRequest) {
+func parseLineRequestString(requestPath *RequestPath, lineStr string) (*RequestPath, []string) {
     if strings.HasPrefix(lineStr, "/") {
         /* We are dealing with a file input of some kind. Figure out if CGI-bin */
         if strings.HasPrefix(lineStr[1:], CgiBinDirStr) {
             /* CGI-bind script, parse requestPath and parameters as standard URL encoding */
-            requestPath, parameters := parseRequestString(lineStr)
-            return NewFileSystemRequest(nil, nil, request.RootDir, requestPath, parameters)        
+            relPath, parameters := parseRequestString(lineStr)
+            return NewRequestPath(requestPath.RootDir(), relPath), parameters
         } else {
             /* Regular file, no more parsing needing */
-            return NewFileSystemRequest(nil, nil, request.RootDir, lineStr[1:], request.Parameters)
+            return NewRequestPath(requestPath.RootDir(), lineStr[1:]), []string{}
         }
     } else {
         /* We have been passed a command string */
         args := splitCommandString(lineStr)
         if len(args) > 1 {
-            return NewFileSystemRequest(nil, nil, "", args[0], args[1:])
+            return NewRequestPath("", args[0]), args[1:]
         } else {
-            return NewFileSystemRequest(nil, nil, "", args[0], []string{})
+            return NewRequestPath("", args[0]), []string{}
         }
     }
 }

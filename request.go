@@ -1,136 +1,184 @@
 package main
 
 import (
+    "io"
     "path"
     "strings"
 )
 
-/* TODO: having 2 separate rootdir string values in Host and RootDir
- *       doesn't sit right with me. It cleans up code a lot for now
- *       but could get confusing. Figure out a more elegant way of
- *       structuring the filesystem request that gets passed around.
- */
-
-type FileSystemRequest struct {
-    /* A file system request with any possible required
-     * data required. Either handled through FileSystem or to
-     * direct function like listDir()
+type RequestPath struct {
+    /* Path structure to allow hosts at
+     * different roots while maintaining relative
+     * and absolute path names for returned values
+     * and filesystem reading
      */
 
-    /* Virtual host and client information */
+    Root string
+    Rel  string
+    Abs  string
+}
+
+func NewRequestPath(rootDir, relPath string) *RequestPath {
+    return &RequestPath{ rootDir, relPath, path.Join(rootDir, strings.TrimSuffix(relPath, "/")) }
+}
+
+func (rp *RequestPath) RootDir() string {
+    return rp.Root
+}
+
+func (rp *RequestPath) Relative() string {
+    return rp.Rel
+}
+
+func (rp *RequestPath) Absolute() string {
+    return rp.Abs
+}
+
+func (rp *RequestPath) Selector() string {
+    if rp.Rel == "." {
+        return "/"
+    } else {
+        return "/"+rp.Rel
+    }
+}
+
+type Request struct {
+    /* A gophor request containing any data necessary.
+     * Either handled through FileSystem or to direct function like listDir().
+     */
+
+    /* Can be nil */
     Host       *ConnHost
     Client     *ConnClient
 
-    /* File path information */
-    RootDir    string
-    Rel        string
-    Abs        string
-
-    /* Other parameters */
+    /* MUST be set */
+    Writer     io.Writer
+    Path       *RequestPath
     Parameters []string /* CGI-bin params will be 1 length slice, shell commands populate >=1 */ 
 }
 
-func NewSanitizedFileSystemRequest(host *ConnHost, client *ConnClient, request string) *FileSystemRequest {
+func NewSanitizedRequest(conn *GophorConn, requestStr string) *Request {
     /* Split dataStr into request path and parameter string (if pressent) */
-    requestPath, parameters := parseRequestString(request)
-    requestPath = sanitizeRequestPath(host.RootDir, requestPath)
-    return NewFileSystemRequest(host, client, host.RootDir, requestPath, parameters)
+    relPath, parameters := parseRequestString(requestStr)
+    relPath = sanitizeRelativePath(conn.HostRoot(), relPath)
+    return NewRequest(conn.Host, conn.Client, conn.Conn, NewRequestPath(conn.HostRoot(), relPath), parameters)
 }
 
-func NewFileSystemRequest(host *ConnHost, client *ConnClient, rootDir, requestPath string, parameters []string) *FileSystemRequest {
-    return &FileSystemRequest{
+func NewRequest(host *ConnHost, client *ConnClient, writer io.Writer, path *RequestPath, parameters []string) *Request {
+    return &Request{
         host,
         client,
-        rootDir,
-        requestPath,
-        path.Join(rootDir, requestPath),
+        writer,
+        path,
         parameters,
     }
 }
 
-func (r *FileSystemRequest) SelectorPath() string {
-    if r.Rel == "." {
-        return "/"
+func (r *Request) AccessLogInfo(format string, args ...interface{}) {
+    /* You HAVE to be sure that r.Conn is NOT nil before calling this */
+    Config.AccLog.Info("("+r.Client.Ip+") ", format, args...)
+}
+
+func (r *Request) AccessLogError(format string, args ...interface{}) {
+    /* You HAVE to be sure that r.Conn is NOT nil before calling this */
+    Config.AccLog.Error("("+r.Client.Ip+") ", format, args...)
+}
+
+func (r *Request) WriteRaw(reader io.Reader) *GophorError {
+    /* You HAVE to be sure that r.Conn is NOT nil before calling this */
+    _, err := io.Copy(r.Writer, reader)
+    if err != nil {
+        return &GophorError{ RequestWriteErr, err }
     } else {
-        return "/"+r.Rel
+        return nil
     }
 }
 
-func (r *FileSystemRequest) AbsPath() string {
-    return r.Abs
-}
-
-func (r *FileSystemRequest) RelPath() string {
-    return r.Rel
-}
-
-func (r *FileSystemRequest) JoinSelectorPath(extPath string) string {
-    if r.Rel == "." {
-        return path.Join("/", extPath)
+func (r *Request) Write(data []byte) *GophorError {
+    count, err := r.Writer.Write(data)
+    if err != nil {
+        return &GophorError{ RequestWriteErr, err }
+    } else if count != len(data) {
+        return &GophorError{ RequestWriteCountErr, nil }
     } else {
-        return "/"+path.Join(r.Rel, extPath)
+        return nil
     }
 }
 
-func (r *FileSystemRequest) JoinAbsPath(extPath string) string {
+func (r *Request) RootDir() string {
+    return r.Path.RootDir()
+}
+
+func (r *Request) AbsPath() string {
+    return r.Path.Absolute()
+}
+
+func (r *Request) RelPath() string {
+    return r.Path.Relative()
+}
+
+func (r *Request) SelectorPath() string {
+    return r.Path.Selector()
+}
+
+func (r *Request) PathJoinSelector(extPath string) string {
+    return path.Join(r.SelectorPath(), extPath)
+}
+
+func (r *Request) PathJoinAbs(extPath string) string {
     return path.Join(r.AbsPath(), extPath)
 }
 
-func (r *FileSystemRequest) JoinRelPath(extPath string) string {
+func (r *Request) PathJoinRel(extPath string) string {
     return path.Join(r.RelPath(), extPath)
 }
 
-func (r *FileSystemRequest) HasAbsPathPrefix(prefix string) bool {
+func (r *Request) PathHasAbsPrefix(prefix string) bool {
     return strings.HasPrefix(r.AbsPath(), prefix)
 }
 
-func (r *FileSystemRequest) HasRelPathPrefix(prefix string) bool {
+func (r *Request) PathHasRelPrefix(prefix string) bool {
     return strings.HasPrefix(r.RelPath(), prefix)
 }
 
-func (r *FileSystemRequest) HasRelPathSuffix(suffix string) bool {
+func (r *Request) PathHasRelSuffix(suffix string) bool {
     return strings.HasSuffix(r.RelPath(), suffix)
 }
 
-func (r *FileSystemRequest) HasAbsPathSuffix(suffix string) bool {
+func (r *Request) PathHasAbsSuffix(suffix string) bool {
     return strings.HasSuffix(r.AbsPath(), suffix)
 }
 
-func (r *FileSystemRequest) TrimRelPathSuffix(suffix string) string {
+func (r *Request) PathTrimRelSuffix(suffix string) string {
     return strings.TrimSuffix(strings.TrimSuffix(r.RelPath(), suffix), "/")
 }
 
-func (r *FileSystemRequest) TrimAbsPathSuffix(suffix string) string {
+func (r *Request) PathTrimAbsSuffix(suffix string) string {
     return strings.TrimSuffix(strings.TrimSuffix(r.AbsPath(), suffix), "/")
 }
 
-func (r *FileSystemRequest) JoinPathFromRoot(extPath string) string {
-    return path.Join(r.RootDir, extPath)
+func (r *Request) PathJoinRootDir(extPath string) string {
+    return path.Join(r.Path.RootDir(), extPath)
 }
 
-func (r *FileSystemRequest) NewStoredRequestAtRoot(relPath string, parameters []string) *FileSystemRequest {
-    /* DANGER THIS DOES NOT CHECK FOR BACK-DIR TRAVERSALS */
-    return NewFileSystemRequest(nil, nil, r.RootDir, relPath, parameters)
-}
-
-func (r *FileSystemRequest) NewStoredRequest() *FileSystemRequest {
-    return NewFileSystemRequest(nil, nil, r.RootDir, r.RelPath(), r.Parameters)
+func (r *Request) CachedRequest() *Request {
+    return NewRequest(nil, nil, nil, r.Path, r.Parameters)
 }
 
 /* Sanitize a request path string */
-func sanitizeRequestPath(rootDir, requestPath string) string {
+func sanitizeRelativePath(rootDir, relPath string) string {
     /* Start with a clean :) */
-    requestPath = path.Clean(requestPath)
+    relPath = path.Clean(relPath)
 
-    if path.IsAbs(requestPath) {
+    if path.IsAbs(relPath) {
         /* Is absolute. Try trimming root and leading '/' */
-        requestPath = strings.TrimPrefix(strings.TrimPrefix(requestPath, rootDir), "/")
+        relPath = strings.TrimPrefix(strings.TrimPrefix(relPath, rootDir), "/")
     } else {
         /* Is relative. If back dir traversal, give them root */
-        if strings.HasPrefix(requestPath, "..") {
-            requestPath = ""
+        if strings.HasPrefix(relPath, "..") {
+            relPath = ""
         }
     }
 
-    return requestPath
+    return relPath
 }

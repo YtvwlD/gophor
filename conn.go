@@ -7,10 +7,8 @@ import (
 
 type ConnHost struct {
     /* Hold host specific details */
-
     Name    string
     Port    string
-    RootDir string
 }
 
 type ConnClient struct {
@@ -26,11 +24,13 @@ type GophorListener struct {
 
     Listener net.Listener
     Host     *ConnHost
+    RootDir  string
 }
 
 func BeginGophorListen(bindAddr, hostname, port, rootDir string) (*GophorListener, error) {
     gophorListener := new(GophorListener)
-    gophorListener.Host = &ConnHost{ hostname, port, rootDir }
+    gophorListener.Host = &ConnHost{ hostname, port }
+    gophorListener.RootDir = rootDir
 
     var err error
     gophorListener.Listener, err = net.Listen("tcp", bindAddr+":"+port)
@@ -51,7 +51,8 @@ func (l *GophorListener) Accept() (*GophorConn, error) {
     gophorConn.Conn = conn
 
     /* Copy over listener host */
-    gophorConn.Host = l.Host
+    gophorConn.Host    = l.Host
+    gophorConn.RootDir = l.RootDir
 
     /* Should always be ok as listener is type TCP (see above) */
     addr, _ := conn.RemoteAddr().(*net.TCPAddr)
@@ -70,9 +71,10 @@ func (l *GophorListener) Addr() net.Addr {
 type GophorConn struct {
     /* Simple net.Conn wrapper with virtual host and client info */
 
-    Conn   net.Conn
-    Host   *ConnHost
-    Client *ConnClient
+    Conn    net.Conn
+    Host    *ConnHost
+    Client  *ConnClient
+    RootDir string
 }
 
 func (c *GophorConn) Read(b []byte) (int, error) {
@@ -85,4 +87,20 @@ func (c *GophorConn) Write(b []byte) (int, error) {
 
 func (c *GophorConn) Close() error {
     return c.Conn.Close()
+}
+
+func (c *GophorConn) Hostname() string {
+    return c.Host.Name
+}
+
+func (c *GophorConn) HostPort() string {
+    return c.Host.Port
+}
+
+func (c *GophorConn) HostRoot() string {
+    return c.RootDir
+}
+
+func (c *GophorConn) ClientAddr() string {
+    return c.Client.Ip
 }

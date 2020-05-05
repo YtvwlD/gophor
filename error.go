@@ -9,28 +9,29 @@ type ErrorCode int
 type ErrorResponseCode int
 const (
     /* Filesystem */
-    PathEnumerationErr  ErrorCode = iota
-    IllegalPathErr      ErrorCode = iota
-    FileStatErr         ErrorCode = iota
-    FileOpenErr         ErrorCode = iota
-    FileReadErr         ErrorCode = iota
-    FileTypeErr         ErrorCode = iota
-    DirListErr          ErrorCode = iota
+    PathEnumerationErr   ErrorCode = iota
+    IllegalPathErr       ErrorCode = iota
+    FileStatErr          ErrorCode = iota
+    FileOpenErr          ErrorCode = iota
+    FileReadErr          ErrorCode = iota
+    FileTypeErr          ErrorCode = iota
+    DirListErr           ErrorCode = iota
 
     /* Sockets */
-    SocketWriteErr      ErrorCode = iota
-    SocketWriteCountErr ErrorCode = iota
+    RequestWriteErr      ErrorCode = iota
+    RequestWriteCountErr ErrorCode = iota
     
     /* Parsing */
-    InvalidRequestErr   ErrorCode = iota
-    EmptyItemTypeErr    ErrorCode = iota
-    InvalidGophermapErr ErrorCode = iota
+    InvalidRequestErr    ErrorCode = iota
+    EmptyItemTypeErr     ErrorCode = iota
+    InvalidGophermapErr  ErrorCode = iota
 
     /* Executing */
-    BufferReadErr       ErrorCode = iota
-    CommandStartErr     ErrorCode = iota
-    CommandExitCodeErr  ErrorCode = iota
-    CgiDisabledErr      ErrorCode = iota
+    BufferReadErr        ErrorCode = iota
+    CommandStartErr      ErrorCode = iota
+    CommandExitCodeErr   ErrorCode = iota
+    CgiDisabledErr       ErrorCode = iota
+    RestrictedCommandErr ErrorCode = iota
 
     /* Error Response Codes */
     ErrorResponse200 ErrorResponseCode = iota
@@ -71,10 +72,10 @@ func (e *GophorError) Error() string {
         case DirListErr:
             str = "directory read fail"
 
-        case SocketWriteErr:
-            str = "socket write fail"
-        case SocketWriteCountErr:
-            str = "socket write count mismatch"
+        case RequestWriteErr:
+            str = "request write fail"
+        case RequestWriteCountErr:
+            str = "request write count mismatch"
 
         case InvalidRequestErr:
             str = "invalid request data"
@@ -91,6 +92,8 @@ func (e *GophorError) Error() string {
             str = "command exit code non-zero"
         case CgiDisabledErr:
             str = "ignoring /cgi-bin request, CGI disabled"
+        case RestrictedCommandErr:
+            str = "command use restricted"
 
         default:
             str = "Unknown"
@@ -123,9 +126,9 @@ func gophorErrorToResponseCode(code ErrorCode) ErrorResponseCode {
             return ErrorResponse404
 
         /* These are errors _while_ sending, no point trying to send error  */
-        case SocketWriteErr:
+        case RequestWriteErr:
             return NoResponse
-        case SocketWriteCountErr:
+        case RequestWriteCountErr:
             return NoResponse
 
         case InvalidRequestErr:
@@ -143,6 +146,8 @@ func gophorErrorToResponseCode(code ErrorCode) ErrorResponseCode {
             return ErrorResponse500
         case CgiDisabledErr:
             return ErrorResponse404
+        case RestrictedCommandErr:
+            return ErrorResponse500
 
         default:
             return ErrorResponse503

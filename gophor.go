@@ -10,7 +10,7 @@ import (
 )
 
 const (
-    GophorVersion   = "0.7-beta-PR1"
+    GophorVersion = "0.7-beta-PR1"
 )
 
 var (
@@ -23,7 +23,7 @@ func main() {
 
     /* Handle signals so we can _actually_ shutdowm */
     signals := make(chan os.Signal)
-    signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+    signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 
     /* Start accepting connections on any supplied listeners */
     for _, l := range listeners {
@@ -39,7 +39,8 @@ func main() {
 
                 /* Run this in it's own goroutine so we can go straight back to accepting */
                 go func() {
-                    NewWorker(newConn).Serve()
+                    worker := &Worker{ newConn }
+                    worker.Serve()
                 }()
             }
         }()
@@ -55,38 +56,41 @@ func setupServer() []*GophorListener {
     /* First we setup all the flags and parse them... */
 
     /* Base server settings */
-    serverRoot        := flag.String("root-dir", "/var/gopher", "Change server root directory.")
-    serverHostname    := flag.String("hostname", "127.0.0.1", "Change server hostname (FQDN).")
-    serverPort        := flag.Int("port", 70, "Change server port (0 to disable unencrypted traffic).")
-    serverBindAddr    := flag.String("bind-addr", "127.0.0.1", "Change server socket bind address")
+    serverRoot         := flag.String("root-dir", "/var/gopher", "Change server root directory.")
+    serverHostname     := flag.String("hostname", "127.0.0.1", "Change server hostname (FQDN).")
+    serverPort         := flag.Int("port", 70, "Change server port (0 to disable unencrypted traffic).")
+    serverBindAddr     := flag.String("bind-addr", "127.0.0.1", "Change server socket bind address")
 
     /* User supplied caps.txt information */
-    serverDescription := flag.String("description", "Gophor: a Gopher server in GoLang", "Change server description in generated caps.txt.")
-    serverAdmin       := flag.String("admin-email", "", "Change admin email in generated caps.txt.")
-    serverGeoloc      := flag.String("geoloc", "", "Change server gelocation string in generated caps.txt.")
+    serverDescription  := flag.String("description", "Gophor, a Gopher server in Go.", "Change server description in generated caps.txt.")
+    serverAdmin        := flag.String("admin-email", "", "Change admin email in generated caps.txt.")
+    serverGeoloc       := flag.String("geoloc", "", "Change server gelocation string in generated caps.txt.")
 
     /* Content settings */
-    footerText        := flag.String("footer", "", "Change gophermap footer text (Unix new-line separated lines).")
-    footerSeparator   := flag.Bool("no-footer-separator", false, "Disable footer line separator.")
+    footerText         := flag.String("footer", " Gophor, a Gopher server in Go.", "Change gophermap footer text (Unix new-line separated lines).")
+    footerSeparator    := flag.Bool("no-footer-separator", false, "Disable footer line separator.")
 
-    pageWidth         := flag.Int("page-width", 80, "Change page width used when formatting output.")
-    restrictedFiles   := flag.String("restrict-files", "", "New-line separated list of regex statements restricting files from showing in directory listings.")
-    disableCgi        := flag.Bool("disable-cgi", false, "Disable CGI and all executable support.")
+    pageWidth          := flag.Int("page-width", 80, "Change page width used when formatting output.")
+    disableCgi         := flag.Bool("disable-cgi", false, "Disable CGI and all executable support.")
+
+    /* Regex */
+    restrictedFiles    := flag.String("restrict-files", "", "New-line separated list of regex statements restricting accessible files.")
+    restrictedCommands := flag.String("restrict-commands", "", "New-line separated list of regex statements restricting accessible commands.")
 
     /* Logging settings */
-    systemLogPath     := flag.String("system-log", "", "Change server system log file (blank outputs to stderr).")
-    accessLogPath     := flag.String("access-log", "", "Change server access log file (blank outputs to stderr).")
-    logOutput         := flag.String("log-output", "stderr", "Change server log file handling (disable|stderr|file)")
-    logOpts           := flag.String("log-opts", "timestamp,ip", "Comma-separated list of log options (timestamp|ip)")
+    systemLogPath      := flag.String("system-log", "", "Change server system log file (blank outputs to stderr).")
+    accessLogPath      := flag.String("access-log", "", "Change server access log file (blank outputs to stderr).")
+    logOutput          := flag.String("log-output", "stderr", "Change server log file handling (disable|stderr|file)")
+    logOpts            := flag.String("log-opts", "timestamp,ip", "Comma-separated list of log options (timestamp|ip)")
 
     /* Cache settings */
-    cacheCheckFreq    := flag.String("cache-check", "60s", "Change file cache freshness check frequency.")
-    cacheSize         := flag.Int("cache-size", 50, "Change file cache size, measured in file count.")
-    cacheFileSizeMax  := flag.Float64("cache-file-max", 0.5, "Change maximum file size to be cached (in megabytes).")
-    cacheDisabled     := flag.Bool("disable-cache", false, "Disable file caching.")
+    fileMonitorFreq    := flag.Duration("file-monitor-freq", time.Second*60, "Change file monitor frequency.")
+    cacheSize          := flag.Int("cache-size", 50, "Change file cache size, measured in file count.")
+    cacheFileSizeMax   := flag.Float64("cache-file-max", 0.5, "Change maximum file size to be cached (in megabytes).")
+    cacheDisabled      := flag.Bool("disable-cache", false, "Disable file caching.")
 
     /* Version string */
-    version           := flag.Bool("version", false, "Print version information.")
+    version            := flag.Bool("version", false, "Print version information.")
 
     /* Parse parse parse!! */
     flag.Parse()
@@ -96,14 +100,22 @@ func setupServer() []*GophorListener {
 
     /* Setup the server configuration instance and enter as much as we can right now */
     Config = new(ServerConfig)
-    Config.PageWidth  = *pageWidth
-    Config.CgiEnabled = !*disableCgi
+    Config.PageWidth = *pageWidth
 
     /* Have to be set AFTER page width variable set */
     Config.FooterText  = formatGophermapFooter(*footerText, !*footerSeparator)
 
     /* Setup Gophor logging system */
     Config.SysLog, Config.AccLog = setupLoggers(*logOutput, *logOpts, *systemLogPath, *accessLogPath)
+
+    /* Set CGI support status */
+    if *disableCgi {
+        Config.SysLog.Info("", "CGI support disabled")
+        Config.CgiEnabled = false
+    } else {
+        Config.SysLog.Info("", "CGI support enabled")
+        Config.CgiEnabled = true
+    }
 
     /* If running as root, get ready to drop privileges */
     if syscall.Getuid() == 0 || syscall.Getgid() == 0 {
@@ -134,41 +146,34 @@ func setupServer() []*GophorListener {
         Config.SysLog.Fatal("", "No valid port to listen on\n")
     }
 
-    /* Compile CmdParse regular expression */
-    Config.CmdParseLineRegex = compileCmdParseRegex()
-
-    /* Compile user restricted files regex */
-    Config.RestrictedFiles = compileUserRestrictedFilesRegex(*restrictedFiles)
+    /* Compile regex statements */
+    Config.CmdParseLineRegex  = compileCmdParseRegex()
+    Config.RestrictedFiles    = compileUserRestrictedFilesRegex(*restrictedFiles)
+    Config.RestrictedCommands = compileUserRestrictedCommandsRegex(*restrictedCommands)
 
     /* Setup file cache */
     Config.FileSystem = new(FileSystem)
 
     /* Check if cache requested disabled */
     if !*cacheDisabled {
-        /* Parse suppled cache check frequency time */
-        fileMonitorSleepTime, err := time.ParseDuration(*cacheCheckFreq)
-        if err != nil {
-            Config.SysLog.Fatal("", "Error parsing supplied cache check frequency %s: %s\n", *cacheCheckFreq, err)
-        }
-
         /* Init file cache */
         Config.FileSystem.Init(*cacheSize, *cacheFileSizeMax)
 
         /* Before file monitor or any kind of new goroutines started,
          * check if we need to cache generated policy files
          */
-        cachePolicyFiles(*serverDescription, *serverAdmin, *serverGeoloc)
+        cachePolicyFiles(*serverRoot, *serverDescription, *serverAdmin, *serverGeoloc)
 
         /* Start file cache freshness checker */
-        go startFileMonitor(fileMonitorSleepTime)
-        Config.SysLog.Info("", "File caching enabled with: maxcount=%d maxsize=%.3fMB checkfreq=%s\n", *cacheSize, *cacheFileSizeMax, fileMonitorSleepTime)
+        go startFileMonitor(*fileMonitorFreq)
+        Config.SysLog.Info("", "File caching enabled with: maxcount=%d maxsize=%.3fMB checkfreq=%s\n", *cacheSize, *cacheFileSizeMax, *fileMonitorFreq)
     } else {
         /* File caching disabled, init with zero max size so nothing gets cached */
         Config.FileSystem.Init(2, 0)
         Config.SysLog.Info("", "File caching disabled\n")
 
         /* Safe to cache policy files now */
-        cachePolicyFiles(*serverDescription, *serverAdmin, *serverGeoloc)
+        cachePolicyFiles(*serverRoot, *serverDescription, *serverAdmin, *serverGeoloc)
     }
 
     /* Return the created listeners slice :) */

@@ -32,7 +32,12 @@ func (fs *FileSystem) Init(size int, fileSizeMax float64) {
     fs.CacheFileMax = int64(BytesInMegaByte * fileSizeMax)
 }
 
-func (fs *FileSystem) HandleRequest(request *FileSystemRequest) ([]byte, *GophorError) {
+func (fs *FileSystem) HandleRequest(request *Request) *GophorError {
+    /* Check if restricted file */
+    if isRestrictedFile(request.AbsPath()) {
+        return &GophorError{ IllegalPathErr, nil }
+    }
+
     /* Get filesystem stat, check it exists! */
     stat, err := os.Stat(request.AbsPath())
     if err != nil {
@@ -41,16 +46,16 @@ func (fs *FileSystem) HandleRequest(request *FileSystemRequest) ([]byte, *Gophor
         file := fs.CacheMap.Get(request.AbsPath())
         if file == nil {
             fs.CacheMutex.RUnlock()
-            return nil, &GophorError{ FileStatErr, err }
+            return &GophorError{ FileStatErr, err }
         }
 
         /* It's there! Get contents, unlock and return */
         file.Mutex.RLock()
-        b := file.Contents(request)
+        gophorErr := file.WriteContents(request)
         file.Mutex.RUnlock()
 
         fs.CacheMutex.RUnlock()
-        return b, nil
+        return gophorErr
     }
 
     /* Handle file type */
@@ -58,46 +63,40 @@ func (fs *FileSystem) HandleRequest(request *FileSystemRequest) ([]byte, *Gophor
         /* Directory */
         case stat.Mode() & os.ModeDir != 0:
             /* Ignore anything under cgi-bin directory */
-            if request.HasRelPathPrefix(CgiBinDirStr) {
-                return nil, &GophorError{ IllegalPathErr, nil }
+            if request.PathHasRelPrefix(CgiBinDirStr) {
+                return &GophorError{ IllegalPathErr, nil }
             }
 
             /* Check Gophermap exists */
-            gophermapRequest := NewFileSystemRequest(request.Host, request.Client, request.RootDir, request.JoinRelPath(GophermapFileStr), request.Parameters)
-            stat, err = os.Stat(gophermapRequest.AbsPath())
+            gophermapPath := NewRequestPath(request.RootDir(), request.PathJoinRel(GophermapFileStr))
+            stat, err = os.Stat(gophermapPath.Absolute())
 
-            var output []byte
-            var gophorErr *GophorError
             if err == nil {
-                /* Gophermap exists! If executable execute, else serve. */
+                /* Gophermap exists! If executable and CGI enabled execute, else serve. */
+                gophermapRequest := NewRequest(request.Host, request.Client, request.Writer, gophermapPath, request.Parameters)
+
                 if stat.Mode().Perm() & 0100 != 0 {
-                    output, gophorErr = executeFile(gophermapRequest)
+                    if Config.CgiEnabled {
+                        return executeFile(gophermapRequest)
+                    } else {
+                        return &GophorError{ CgiDisabledErr, nil }
+                    }
                 } else {
-                    output, gophorErr = fs.FetchFile(gophermapRequest)
+                    return fs.FetchFile(gophermapRequest)
                 }
             } else {
                 /* No gophermap, serve directory listing */
-                output, gophorErr = listDir(request, map[string]bool{})
+                return listDir(request, map[string]bool{})
             }
-
-            if gophorErr != nil {
-                /* Fail out! */
-                return nil, gophorErr
-            }
-
-            /* Append footer text (contains last line) and return */
-            output = append(output, Config.FooterText...)
-
-            return output, nil
 
         /* Regular file */
         case stat.Mode() & os.ModeType == 0:
             /* If cgi-bin and CGI enabled, return executed contents. Else, fetch */
-            if request.HasRelPathPrefix(CgiBinDirStr) {
+            if request.PathHasRelPrefix(CgiBinDirStr) {
                 if Config.CgiEnabled {
                     return executeCgi(request)
                 } else {
-                    return nil, &GophorError{ CgiDisabledErr, nil }
+                    return &GophorError{ CgiDisabledErr, nil }
                 }
             } else {
                 return fs.FetchFile(request)
@@ -105,11 +104,11 @@ func (fs *FileSystem) HandleRequest(request *FileSystemRequest) ([]byte, *Gophor
 
         /* Unsupported type */
         default:
-            return nil, &GophorError{ FileTypeErr, nil }
+            return &GophorError{ FileTypeErr, nil }
     }
 }
 
-func (fs *FileSystem) FetchFile(request *FileSystemRequest) ([]byte, *GophorError) {
+func (fs *FileSystem) FetchFile(request *Request) *GophorError {
     /* Get cache map read lock then check if file in cache map */
     fs.CacheMutex.RLock()
     file := fs.CacheMap.Get(request.AbsPath())
@@ -125,12 +124,12 @@ func (fs *FileSystem) FetchFile(request *FileSystemRequest) ([]byte, *GophorErro
             file.Mutex.Lock()
 
             /* Reload file contents from disk */
-            gophorErr := file.LoadContents()
+            gophorErr := file.CacheContents()
             if gophorErr != nil {
                 /* Error loading contents, unlock all mutex then return error */
                 file.Mutex.Unlock()
                 fs.CacheMutex.RUnlock()
-                return nil, gophorErr
+                return gophorErr
             }
 
             /* Updated! Swap back file write for read lock */
@@ -138,42 +137,55 @@ func (fs *FileSystem) FetchFile(request *FileSystemRequest) ([]byte, *GophorErro
             file.Mutex.RLock()
         }
     } else {
-        /* Perform filesystem stat ready for checking file size later.
-         * Doing this now allows us to weed-out non-existent files early
+        /* Open file here, to check it exists, ready for file stat
+         * and in case file is too big we pass it as a raw response
          */
-        stat, err := os.Stat(request.AbsPath())
+        fd, err := os.Open(request.AbsPath())
         if err != nil {
             /* Error stat'ing file, unlock read mutex then return error */
             fs.CacheMutex.RUnlock()
-            return nil, &GophorError{ FileStatErr, err }
+            return &GophorError{ FileOpenErr, err }
+        }
+
+        /* We need a doctor, stat! */
+        stat, err := fd.Stat()
+        if err != nil {
+            /* Error stat'ing file, unlock read mutext then return */
+            fs.CacheMutex.RUnlock()
+            return &GophorError{ FileStatErr, err }
+        }
+
+        /* Compare file size (in MB) to CacheFileSizeMax. If larger, just send file raw */
+        if stat.Size() > fs.CacheFileMax {
+            /* Unlock the read mutex, we don't need it where we're going... returning, we're returning. */
+            fs.CacheMutex.RUnlock()
+            return request.WriteRaw(fd)
         }
 
         /* Create new file contents */
         var contents FileContents
-        if request.HasAbsPathSuffix("/"+GophermapFileStr) {
-            contents = &GophermapContents{ request, nil }
+        if request.PathHasAbsSuffix("/"+GophermapFileStr) {
+            contents = &GophermapContents{ request.CachedRequest(), nil }
         } else {
-            contents = &RegularFileContents{ request, nil }
+            contents = &RegularFileContents{ request.CachedRequest(), nil }
+        }
+
+        /* Compare file size (in MB) to CacheFileSizeMax. If larger, just send file raw */
+        if stat.Size() > fs.CacheFileMax {
+            /* Unlock the read mutex, we don't need it where we're going... returning, we're returning. */
+            fs.CacheMutex.RUnlock()
+            return contents.Render(request)
         }
 
         /* Create new file wrapper around contents */
         file = &File{ contents, sync.RWMutex{}, true, time.Now().UnixNano() }
 
         /* File isn't in cache yet so no need to get file lock mutex */
-        gophorErr := file.LoadContents()
+        gophorErr := file.CacheContents()
         if gophorErr != nil {
             /* Error loading contents, unlock read mutex then return error */
             fs.CacheMutex.RUnlock()
-            return nil, gophorErr
-        }
-
-        /* Compare file size (in MB) to CacheFileSizeMax, if larger just get file
-         * contents, unlock all mutex and don't bother caching. 
-         */
-        if stat.Size() > fs.CacheFileMax {
-            b := file.Contents(request)
-            fs.CacheMutex.RUnlock()
-            return b, nil
+            return gophorErr
         }
 
         /* File not in cache -- Swap cache map read for write lock. */
@@ -192,13 +204,13 @@ func (fs *FileSystem) FetchFile(request *FileSystemRequest) ([]byte, *GophorErro
     }
 
     /* Read file contents into new variable for return, then unlock file read lock */
-    b := file.Contents(request)
+    gophorErr := file.WriteContents(request)
     file.Mutex.RUnlock()
 
     /* Finally we can unlock the cache map read lock, we are done :) */
     fs.CacheMutex.RUnlock()
 
-    return b, nil
+    return gophorErr
 }
 
 type File struct {
@@ -213,11 +225,11 @@ type File struct {
     LastRefresh int64
 }
 
-func (f *File) Contents(request *FileSystemRequest) []byte {
+func (f *File) WriteContents(request *Request) *GophorError {
     return f.Content.Render(request)
 }
 
-func (f *File) LoadContents() *GophorError {
+func (f *File) CacheContents() *GophorError {
     /* Clear current file contents */
     f.Content.Clear()
 

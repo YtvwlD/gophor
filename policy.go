@@ -2,6 +2,7 @@ package main
 
 import (
     "os"
+    "path"
     "sync"
 )
 
@@ -11,9 +12,9 @@ const (
     RobotsTxtStr = "robots.txt"
 )
 
-func cachePolicyFiles(description, admin, geoloc string) {
+func cachePolicyFiles(rootDir, description, admin, geoloc string) {
     /* See if caps txt exists, if not generate */
-    _, err := os.Stat("/caps.txt")
+    _, err := os.Stat(path.Join(rootDir, CapsTxtStr))
     if err != nil {
         /* We need to generate the caps txt and manually load into cache */
         content := generateCapsTxt(description, admin, geoloc)
@@ -23,14 +24,15 @@ func cachePolicyFiles(description, admin, geoloc string) {
         file := &File{ fileContents, sync.RWMutex{}, true, 0 }
 
         /* Trigger a load contents just to set it as fresh etc */
-        file.LoadContents()
+        file.CacheContents()
 
         /* No need to worry about mutexes here, no other goroutines running yet */
-        Config.FileSystem.CacheMap.Put("/"+CapsTxtStr, file)
+        Config.FileSystem.CacheMap.Put(rootDir+"/"+CapsTxtStr, file)
+        Config.SysLog.Info("", "Generated policy file: %s\n", rootDir+"/"+CapsTxtStr)
     }
 
     /* See if caps txt exists, if not generate */
-    _, err = os.Stat("/robots.txt")
+    _, err = os.Stat(rootDir+"/"+RobotsTxtStr)
     if err != nil {
         /* We need to generate the caps txt and manually load into cache */
         content := generateRobotsTxt()
@@ -40,10 +42,11 @@ func cachePolicyFiles(description, admin, geoloc string) {
         file := &File{ fileContents, sync.RWMutex{}, true, 0 }
 
         /* Trigger a load contents just to set it as fresh etc */
-        file.LoadContents()
+        file.CacheContents()
 
         /* No need to worry about mutexes here, no other goroutines running yet */
-        Config.FileSystem.CacheMap.Put("/"+RobotsTxtStr, file)
+        Config.FileSystem.CacheMap.Put(rootDir+"/"+RobotsTxtStr, file)
+        Config.SysLog.Info("", "Generated policy file: %s\n", rootDir+"/"+RobotsTxtStr)
     }
 }
 

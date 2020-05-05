@@ -111,19 +111,19 @@ func unixLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, er
 }
 
 /* List the files in a directory, hiding those requested */
-func listDir(request *FileSystemRequest, hidden map[string]bool) ([]byte, *GophorError) {
+func listDir(request *Request, hidden map[string]bool) *GophorError {
     /* Open directory file descriptor */
     fd, err := os.Open(request.AbsPath())
     if err != nil {
         Config.SysLog.Error("", "failed to open %s: %s\n", request.AbsPath(), err.Error())
-        return nil, &GophorError{ FileOpenErr, err }
+        return &GophorError{ FileOpenErr, err }
     }
 
     /* Read files in directory */
     files, err := fd.Readdir(-1)
     if err != nil {
         Config.SysLog.Error("", "failed to enumerate dir %s: %s\n", request.AbsPath(), err.Error())
-        return nil, &GophorError{ DirListErr, err }
+        return &GophorError{ DirListErr, err }
     }
 
     /* Sort the files by name */
@@ -137,14 +137,12 @@ func listDir(request *FileSystemRequest, hidden map[string]bool) ([]byte, *Gopho
     dirContents = append(dirContents, buildInfoLine("")...)
 
     /* Add a 'back' entry. GoLang Readdir() seems to miss this */
-    dirContents = append(dirContents, buildLine(TypeDirectory, "..", request.JoinRelPath(".."), request.Host.Name, request.Host.Port)...)
+    dirContents = append(dirContents, buildLine(TypeDirectory, "..", request.PathJoinSelector(".."), request.Host.Name, request.Host.Port)...)
 
     /* Walk through files :D */
     for _, file := range files {
         /* If regex match in restricted files || requested hidden */
-        if isRestrictedFile(file.Name()) {
-            continue
-        } else if _, ok := hidden[file.Name()]; ok {
+        if _, ok := hidden[file.Name()]; ok {
             continue
         }
 
@@ -152,12 +150,12 @@ func listDir(request *FileSystemRequest, hidden map[string]bool) ([]byte, *Gopho
         switch {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
-                itemPath := request.JoinSelectorPath(file.Name())
+                itemPath := request.PathJoinSelector(file.Name())
                 dirContents = append(dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
-                itemPath := request.JoinSelectorPath(file.Name())
+                itemPath := request.PathJoinSelector(file.Name())
                 itemType := getItemType(itemPath)
                 dirContents = append(dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
 
@@ -166,7 +164,10 @@ func listDir(request *FileSystemRequest, hidden map[string]bool) ([]byte, *Gopho
         }
     }
 
-    return dirContents, nil
+    /* Append the footer (including lastline) */
+    dirContents = append(dirContents, Config.FooterText...)
+
+    return request.Write(dirContents)
 }
 
 /* Took a leaf out of go-gopher's book here. */
