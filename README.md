@@ -21,7 +21,7 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 - LRU file caching with user-controlled cache size, max cached file size
   and cache refresh frequency.
 
-- Initial CGI-bin support (aiming for CGI 1.1 compliance).
+- CGI/1.1 support (see below for CGI environment variables set).
 
 - HTTP style URL query and encoding support.
 
@@ -40,13 +40,25 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 - Separate system and access logging with output and formatting options.
 
-Please note: previously, chrooting to server directory and dropping
-privileges was supported by using Go C bindings. Unexpected circumstances
-have not yet been witnessed... But as this is not officially supported due to
-unexpected behaviour with `.Set{U,G}id()` under Linux, and there is a near 10 year 
-ongoing tracked issue (https://github.com/golang/go/issues/1435), I decided to
-drop this feature for now. As soon as this patch gets merged I'll add
-support: https://go-review.googlesource.com/c/go/+/210639
+## Please note
+
+### Gophermap parsing
+
+Due to the way that gophermap parsing is handled, if a gophermap is larger than
+the max cache'd file size or file caching is disabled, which is the same as
+same as setting max size to 0, these gophermaps WILL NOT be parsed by the server.
+The features you will miss out on for these files is are all those listed as
+`[SERVER ONLY]` in the gophermap item types section below.
+
+### Chroots and privilege dropping
+
+Previously, chrooting to server directory and dropping privileges was supported
+by using Go C bindings. Unexpected circumstances have not yet been witnessed...
+But as this is not officially supported due to unexpected behaviour with
+`.Set{U,G}id()` under Linux, and there is a near 10 year ongoing tracked issue
+(https://github.com/golang/go/issues/1435), I decided to drop this feature for
+now. As soon as this patch gets merged I'll add support:
+https://go-review.googlesource.com/c/go/+/210639
 
 In place of removing this, request sanitization has been majorly improved and
 checks are in place to prevent running Gophor as root.
@@ -67,7 +79,9 @@ permissions then there are a few alternatives:
 ```
 gophor [args]
        -root-dir            Change server root directory.
-       -port                Change server listening port.
+       -port                Change server bind port.
+       -fwd-port            Change port used in $port replacement strings
+                            (e.g. when port forwarding).
        -hostname            Change server hostname (FQDN, used to craft dir
                             lists).
        -bind-addr           Change server bind-address (used in creating
@@ -116,6 +130,7 @@ text lines before sending to connecting clients.
 ```
 RFC 1436 Standard:
 Type | Treat as | Meaning
+--------------------------
  0   |   TEXT   | Regular file (text)
  1   |   MENU   | Directory (menu)
  2   | EXTERNAL | CCSO flat db; other db
@@ -133,6 +148,7 @@ Type | Treat as | Meaning
 
 GopherII Standard:
 Type | Treat as | Meaning
+--------------------------
  c   |  BINARY  | Calendar file
  d   |  BINARY  | Word-processing document; PDF document
  h   |   TEXT   | HTML document
@@ -145,10 +161,11 @@ Type | Treat as | Meaning
 
 Commonly used:
 Type | Treat as | Meaning
+--------------------------
+ .   |     -    | Last line -- stop processing gophermap default
  !   |     -    | [SERVER ONLY] Menu title (set title ONCE per gophermap)
  #   |     -    | [SERVER ONLY] Comment, rest of line is ignored
  -   |     -    | [SERVER ONLY] Hide file/directory from directory listing
- .   |     -    | [SERVER ONLY] Last line -- stop processing gophermap default
  *   |     -    | [SERVER ONLY] Last line + directory listing -- stop processing
      |          |               gophermap and end on a directory listing
  =   |     -    | [SERVER ONLY] Include or execute subgophermap, cgi-bin, regular
@@ -167,6 +184,56 @@ Titles are sent as `i<title text>\tTITLE\tnull.host\t0`.
 
 Web address links are sent as `h<text here>\tURL:<address>\thostname\tport`.
 An HTML redirect is sent in response to any requests beginning with `URL:`.
+
+## CGI/1.1
+
+The list of environment variables that gophor sets are as follows.
+
+RFC 3875 standard:
+
+```
+# Set
+GATEWAY INTERFACE
+SERVER_SOFTWARE
+SERVER_PROTOCOL
+CONTENT_LENGTH
+REQUEST_METHOD
+SERVER_NAME
+SERVER_PORT
+REMOTE_ADDR
+QUERY_STRING
+SCRIPT_NAME
+SCRIPT_FILENAME
+
+# NOT set
+    Env Var     |                  Reasoning
+----------------------------------------------
+PATH_INFO       | This variable can fuck off, having to find the shortest
+                | valid part of path heirarchy in a URI every single
+                | CGI request so you can split and set this variable is SO
+                | inefficient. However, if someone more knowledgeable has
+                | other opinions or would like to point out where I'm wrong I
+                | will happily change my tune on this.
+PATH_TRANSLATED | See above.
+AUTH_TYPE       | Until we implement authentication of some kind, ignoring.
+CONTENT_TYPE    | Very HTTP-centric relying on 'content-type' header.
+REMOTE_IDENT    | Remote client identity information.
+REMOTE_HOST     | Basically if the client has a resolving name (not just
+                | IP), not really necessary.
+REMOTE_USER     | Remote user id, not used as again no user auth yet.
+```
+
+Non-standard:
+
+```
+# Set
+SELECTOR
+DOCUMENT_ROOT
+REQUEST_URI
+PATH
+COLUMNS
+GOPHER_CHARSET
+```
 
 ## Policy files
 
