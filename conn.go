@@ -7,14 +7,43 @@ import (
 
 type ConnHost struct {
     /* Hold host specific details */
-    Name    string
-    Port    string
+    HostName string
+    HostPort string
+    FwdPort  string
+}
+
+func (host *ConnHost) Name() string {
+    return host.HostName
+}
+
+func (host *ConnHost) Port() string {
+    return host.FwdPort
+}
+
+func (host *ConnHost) RealPort() string {
+    return host.HostPort
+}
+
+func (host *ConnHost) AddrStr() string {
+    return host.Name()+":"+host.Port()
 }
 
 type ConnClient struct {
     /* Hold client specific details */
-    Ip   string
-    Port string
+    ClientIp   string
+    ClientPort string
+}
+
+func (client *ConnClient) Ip() string {
+    return client.ClientIp
+}
+
+func (client *ConnClient) Port() string {
+    return client.ClientPort
+}
+
+func (client *ConnClient) AddrStr() string {
+    return client.Ip()+":"+client.Port()
 }
 
 type GophorListener struct {
@@ -24,13 +53,13 @@ type GophorListener struct {
 
     Listener net.Listener
     Host     *ConnHost
-    RootDir  string
+    Root     string
 }
 
-func BeginGophorListen(bindAddr, hostname, port, rootDir string) (*GophorListener, error) {
+func BeginGophorListen(bindAddr, hostname, port, fwdPort, rootDir string) (*GophorListener, error) {
     gophorListener := new(GophorListener)
-    gophorListener.Host = &ConnHost{ hostname, port }
-    gophorListener.RootDir = rootDir
+    gophorListener.Host = &ConnHost{ hostname, port, fwdPort }
+    gophorListener.Root = rootDir
 
     var err error
     gophorListener.Listener, err = net.Listen("tcp", bindAddr+":"+port)
@@ -51,8 +80,8 @@ func (l *GophorListener) Accept() (*GophorConn, error) {
     gophorConn.Conn = conn
 
     /* Copy over listener host */
-    gophorConn.Host    = l.Host
-    gophorConn.RootDir = l.RootDir
+    gophorConn.Host = l.Host
+    gophorConn.Root = l.Root
 
     /* Should always be ok as listener is type TCP (see above) */
     addr, _ := conn.RemoteAddr().(*net.TCPAddr)
@@ -74,7 +103,7 @@ type GophorConn struct {
     Conn    net.Conn
     Host    *ConnHost
     Client  *ConnClient
-    RootDir string
+    Root    string
 }
 
 func (c *GophorConn) Read(b []byte) (int, error) {
@@ -89,18 +118,6 @@ func (c *GophorConn) Close() error {
     return c.Conn.Close()
 }
 
-func (c *GophorConn) Hostname() string {
-    return c.Host.Name
-}
-
-func (c *GophorConn) HostPort() string {
-    return c.Host.Port
-}
-
-func (c *GophorConn) HostRoot() string {
-    return c.RootDir
-}
-
-func (c *GophorConn) ClientAddr() string {
-    return c.Client.Ip
+func (c *GophorConn) RootDir() string {
+    return c.Root
 }

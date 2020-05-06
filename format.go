@@ -246,9 +246,20 @@ func formatGophermapFooter(text string, useSeparator bool) []byte {
 
 /* Replace standard replacement strings */
 func replaceStrings(str string, connHost *ConnHost) []byte {
-    str = strings.Replace(str, ReplaceStrHostname, connHost.Name, -1)
-    str = strings.Replace(str, ReplaceStrPort, connHost.Port, -1)
-    return []byte(str)
+    /* We only replace the actual host and port values */
+    split := strings.Split(str, Tab)
+    if len(split) < 4 {
+        return []byte(str)
+    }
+
+    split[2] = strings.Replace(split[2], ReplaceStrHostname, connHost.Name(), -1)
+    split[3] = strings.Replace(split[3], ReplaceStrPort, connHost.Port(), -1)
+
+    b := make([]byte, 0)
+    for i := range split {
+        b = append(b, []byte(split[i])...)
+    }
+    return b
 }
 
 /* Replace new-line characters */

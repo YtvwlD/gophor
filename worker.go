@@ -38,7 +38,7 @@ func (worker *Worker) Serve() {
                 break
             }
 
-            Config.SysLog.Error("", "Error reading from socket on port %s: %s\n", worker.Conn.Host.Port, err.Error())
+            Config.SysLog.Error("", "Error reading from socket on port %s: %s\n", worker.Conn.Host.Port(), err.Error())
             return
         }
 
@@ -77,7 +77,7 @@ func (worker *Worker) Serve() {
     switch len(received) {
         case lenBefore-4:
             /* Send an HTML redirect to supplied URL */
-            Config.AccLog.Info("("+worker.Conn.ClientAddr()+") ", "Redirecting to %s\n", received)
+            Config.AccLog.Info("("+worker.Conn.Client.Ip()+") ", "Redirecting to %s\n", received)
             worker.Conn.Write(generateHtmlRedirect(received))
             return
         default:

@@ -43,9 +43,9 @@ func setupInitialCgiEnviron() []string {
 func executeCgi(request *Request) *GophorError {
     /* Get initial CgiEnv variables */
     cgiEnv := Config.CgiEnv
-    cgiEnv = append(cgiEnv, envKeyValue("SERVER_NAME",     request.Host.Name)) /* MUST be set to name of server host client is connecting to */
-    cgiEnv = append(cgiEnv, envKeyValue("SERVER_PORT",     request.Host.Port)) /* MUST be set to the server port that client is connecting to */
-    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_ADDR",     request.Client.Ip)) /* Remote client addr, MUST be set */
+    cgiEnv = append(cgiEnv, envKeyValue("SERVER_NAME",     request.Host.Name())) /* MUST be set to name of server host client is connecting to */
+    cgiEnv = append(cgiEnv, envKeyValue("SERVER_PORT",     request.Host.Port())) /* MUST be set to the server port that client is connecting to */
+    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_ADDR",     request.Client.Ip())) /* Remote client addr, MUST be set */
 
     /* We store the query string in Parameters[0]. Ensure we git without initial delimiter */
     var queryString string

@@ -60,8 +60,8 @@ type Request struct {
 func NewSanitizedRequest(conn *GophorConn, requestStr string) *Request {
     /* Split dataStr into request path and parameter string (if pressent) */
     relPath, parameters := parseRequestString(requestStr)
-    relPath = sanitizeRelativePath(conn.HostRoot(), relPath)
-    return NewRequest(conn.Host, conn.Client, conn.Conn, NewRequestPath(conn.HostRoot(), relPath), parameters)
+    relPath = sanitizeRelativePath(conn.RootDir(), relPath)
+    return NewRequest(conn.Host, conn.Client, conn.Conn, NewRequestPath(conn.RootDir(), relPath), parameters)
 }
 
 func NewRequest(host *ConnHost, client *ConnClient, writer io.Writer, path *RequestPath, parameters []string) *Request {
@@ -76,12 +76,12 @@ func NewRequest(host *ConnHost, client *ConnClient, writer io.Writer, path *Requ
 
 func (r *Request) AccessLogInfo(format string, args ...interface{}) {
     /* You HAVE to be sure that r.Conn is NOT nil before calling this */
-    Config.AccLog.Info("("+r.Client.Ip+") ", format, args...)
+    Config.AccLog.Info("("+r.Client.AddrStr()+") ", format, args...)
 }
 
 func (r *Request) AccessLogError(format string, args ...interface{}) {
     /* You HAVE to be sure that r.Conn is NOT nil before calling this */
-    Config.AccLog.Error("("+r.Client.Ip+") ", format, args...)
+    Config.AccLog.Error("("+r.Client.AddrStr()+") ", format, args...)
 }
 
 func (r *Request) WriteRaw(reader io.Reader) *GophorError {

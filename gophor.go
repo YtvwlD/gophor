@@ -58,7 +58,8 @@ func setupServer() []*GophorListener {
     /* Base server settings */
     serverRoot         := flag.String("root-dir", "/var/gopher", "Change server root directory.")
     serverHostname     := flag.String("hostname", "127.0.0.1", "Change server hostname (FQDN).")
-    serverPort         := flag.Int("port", 70, "Change server port (0 to disable unencrypted traffic).")
+    serverPort         := flag.Int("port", 70, "Change server bind port.")
+    serverFwdPort      := flag.Int("fwd-port", 0, "Change port used in '$port' replacement strings (useful if you're port forwarding).")
     serverBindAddr     := flag.String("bind-addr", "127.0.0.1", "Change server socket bind address")
 
     /* User supplied caps.txt information */
@@ -137,7 +138,12 @@ func setupServer() []*GophorListener {
 
     /* If requested, setup unencrypted listener */
     if *serverPort != 0 {
-        l, err := BeginGophorListen(*serverBindAddr, *serverHostname, strconv.Itoa(*serverPort), *serverRoot)
+        /* If no forward port set, just use regular */
+        if *serverFwdPort == 0 {
+            *serverFwdPort = *serverPort
+        }
+
+        l, err := BeginGophorListen(*serverBindAddr, *serverHostname, strconv.Itoa(*serverPort), strconv.Itoa(*serverFwdPort), *serverRoot)
         if err != nil {
             Config.SysLog.Fatal("", "Error setting up (unencrypted) listener: %s\n", err.Error())
         }

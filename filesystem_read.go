@@ -133,11 +133,11 @@ func listDir(request *Request, hidden map[string]bool) *GophorError {
     dirContents := make([]byte, 0)
 
     /* First add a title + a space */
-    dirContents = append(dirContents, buildLine(TypeInfo, "[ "+request.Host.Name+request.SelectorPath()+" ]", "TITLE", NullHost, NullPort)...)
+    dirContents = append(dirContents, buildLine(TypeInfo, "[ "+request.Host.Name()+request.SelectorPath()+" ]", "TITLE", NullHost, NullPort)...)
     dirContents = append(dirContents, buildInfoLine("")...)
 
     /* Add a 'back' entry. GoLang Readdir() seems to miss this */
-    dirContents = append(dirContents, buildLine(TypeDirectory, "..", request.PathJoinSelector(".."), request.Host.Name, request.Host.Port)...)
+    dirContents = append(dirContents, buildLine(TypeDirectory, "..", request.PathJoinSelector(".."), request.Host.Name(), request.Host.Port())...)
 
     /* Walk through files :D */
     for _, file := range files {
@@ -151,13 +151,13 @@ func listDir(request *Request, hidden map[string]bool) *GophorError {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
                 itemPath := request.PathJoinSelector(file.Name())
-                dirContents = append(dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
+                dirContents = append(dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name(), request.Host.Port())...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
                 itemPath := request.PathJoinSelector(file.Name())
                 itemType := getItemType(itemPath)
-                dirContents = append(dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
+                dirContents = append(dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name(), request.Host.Port())...)
 
             default:
                 /* Ignore */
